@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -9,23 +9,16 @@ import {
     View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AxiosInstance } from 'axios';
-import createApi from '../axiosConfig';
+import axios from 'axios';
+import axiosInstance from '../axiosConfig';
 
 const ManagerCreationForm: React.FC = () => {
     const [managerName, setManagerName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [api, setApi] = useState<AxiosInstance | null>(null);
-
-    useEffect(() => {
-        const initializeApi = async () => {
-            const createdApi = await createApi();
-            setApi(createdApi);
-        };
-        initializeApi();
-    }, []);
+    const [message, setMessage] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const createNewManager = async (
         managerName: string,
@@ -34,33 +27,52 @@ const ManagerCreationForm: React.FC = () => {
         confirmPassword: string
     ): Promise<boolean> => {
         if (password !== confirmPassword) {
-            Alert.alert('Error', "Passwords don't match");
-            return false;
-        }
-
-        if (!api) {
-            Alert.alert('Error', 'API not initialized');
+            setMessage("Passwords don't match");
+            setIsSuccess(false);
             return false;
         }
 
         try {
-            const response = await api.post('/create/', {
+            console.log('Attempting to create manager...');
+            const response = await axiosInstance.post('accounts/create/', {
                 username: managerName,
                 email,
                 password,
                 confirm_password: confirmPassword,
             });
 
+            console.log('Create manager response:', response.data);
+
             if (response.data.token) {
                 await AsyncStorage.setItem('AUTH_TOKEN', response.data.token);
                 await AsyncStorage.setItem('username', response.data.username);
+                setMessage('Manager created successfully');
+                setIsSuccess(true);
                 return true;
             }
         } catch (error) {
-            if (error instanceof Error) {
-                Alert.alert('Error', error.message || 'An error occurred while creating the manager');
+            console.error('API Error:', error);
+            setIsSuccess(false);
+
+            if (axios.isAxiosError(error)) {
+                if (error.response) {
+                    console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+                    console.error('Response Status:', error.response.status);
+                    console.error('Response Headers:', JSON.stringify(error.response.headers, null, 2));
+                    setMessage(`Error: ${JSON.stringify(error.response.data)}`);
+                } else if (error.request) {
+                    console.error('Request Error: No response received from the server');
+                    setMessage('Error: No response received from the server');
+                } else {
+                    console.error('Request Setup Error:', error.message);
+                    setMessage(`Error: ${error.message}`);
+                }
+            } else if (error instanceof Error) {
+                console.error('Error Message:', error.message);
+                setMessage(`Error: ${error.message}`);
             } else {
-                Alert.alert('Error', 'An unexpected error occurred');
+                console.error('Unknown Error:', error);
+                setMessage('An unknown error occurred');
             }
         }
         return false;
@@ -73,7 +85,6 @@ const ManagerCreationForm: React.FC = () => {
             setEmail('');
             setPassword('');
             setConfirmPassword('');
-            Alert.alert('Success', 'Manager created successfully');
             // Navigate to the main app screen here
         }
     };
@@ -112,6 +123,11 @@ const ManagerCreationForm: React.FC = () => {
                 <TouchableOpacity style={styles.button} onPress={handleCreateManager}>
                     <Text style={styles.buttonText}>Create</Text>
                 </TouchableOpacity>
+                {message ? (
+                    <Text style={[styles.message, isSuccess ? styles.successMessage : styles.errorMessage]}>
+                        {message}
+                    </Text>
+                ) : null}
             </View>
         </ScrollView>
     );
@@ -150,6 +166,16 @@ const styles = StyleSheet.create({
         color: 'white',
         textAlign: 'center',
         fontWeight: 'bold',
+    },
+    message: {
+        marginTop: 10,
+        textAlign: 'center',
+    },
+    successMessage: {
+        color: 'green',
+    },
+    errorMessage: {
+        color: 'red',
     },
 });
 
