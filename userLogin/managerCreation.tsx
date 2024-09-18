@@ -5,12 +5,15 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    Alert,
     View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import axiosInstance from '../axiosConfig';
+
+interface FieldError {
+    [key: string]: string[];
+}
 
 const ManagerCreationForm: React.FC = () => {
     const [managerName, setManagerName] = useState('');
@@ -19,6 +22,7 @@ const ManagerCreationForm: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<FieldError>({});
 
     const createNewManager = async (
         managerName: string,
@@ -26,6 +30,8 @@ const ManagerCreationForm: React.FC = () => {
         password: string,
         confirmPassword: string
     ): Promise<boolean> => {
+        setFieldErrors({});
+
         if (password !== confirmPassword) {
             setMessage("Passwords don't match");
             setIsSuccess(false);
@@ -54,25 +60,24 @@ const ManagerCreationForm: React.FC = () => {
             console.error('API Error:', error);
             setIsSuccess(false);
 
-            if (axios.isAxiosError(error)) {
-                if (error.response) {
-                    console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
-                    console.error('Response Status:', error.response.status);
-                    console.error('Response Headers:', JSON.stringify(error.response.headers, null, 2));
-                    setMessage(`Error: ${JSON.stringify(error.response.data)}`);
-                } else if (error.request) {
-                    console.error('Request Error: No response received from the server');
-                    setMessage('Error: No response received from the server');
+            if (axios.isAxiosError(error) && error.response) {
+                const responseData = error.response.data;
+                if (typeof responseData === 'object') {
+                    const errors: FieldError = {};
+                    for (const [key, value] of Object.entries(responseData)) {
+                        if (Array.isArray(value)) {
+                            errors[key] = value;
+                        }
+                    }
+                    setFieldErrors(errors);
+
+                    // Set a generic error message for the user
+                    setMessage('Please fill in all required fields correctly.');
                 } else {
-                    console.error('Request Setup Error:', error.message);
-                    setMessage(`Error: ${error.message}`);
+                    setMessage('An error occurred while creating the account. Please try again.');
                 }
-            } else if (error instanceof Error) {
-                console.error('Error Message:', error.message);
-                setMessage(`Error: ${error.message}`);
             } else {
-                console.error('Unknown Error:', error);
-                setMessage('An unknown error occurred');
+                setMessage('An error occurred. Please check your internet connection and try again.');
             }
         }
         return false;
@@ -89,32 +94,36 @@ const ManagerCreationForm: React.FC = () => {
         }
     };
 
+    const getInputStyle = (fieldName: string) => {
+        return fieldErrors[fieldName] ? [styles.input, styles.inputError] : styles.input;
+    };
+
     return (
         <ScrollView contentContainerStyle={styles.scrollView}>
             <View style={styles.container}>
                 <Text style={styles.title}>Create New Manager</Text>
                 <TextInput
-                    style={styles.input}
+                    style={getInputStyle('username')}
                     placeholder="Manager Name"
                     value={managerName}
                     onChangeText={setManagerName}
                 />
                 <TextInput
-                    style={styles.input}
+                    style={getInputStyle('email')}
                     placeholder="Email"
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
                 />
                 <TextInput
-                    style={styles.input}
+                    style={getInputStyle('password')}
                     placeholder="Password"
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry
                 />
                 <TextInput
-                    style={styles.input}
+                    style={getInputStyle('confirm_password')}
                     placeholder="Confirm Password"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
@@ -155,6 +164,9 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         paddingHorizontal: 10,
         borderRadius: 5,
+    },
+    inputError: {
+        borderColor: 'red',
     },
     button: {
         backgroundColor: '#007AFF',
