@@ -2,8 +2,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 
-// const baseURL = Config.BASE_URL || 'http://127.0.0.1:8000/';
-const baseURL = 'https://football.eliptum.tech/';
+// Use Config to get the base URL and log it
+const baseURL = Config.BASE_URL || 'https://football.eliptum.tech/';
 const debugMode = true;  // Toggle this to true/false for enabling/disabling logs
 
 const axiosInstance = axios.create({
@@ -14,6 +14,17 @@ const axiosInstance = axios.create({
     },
     timeout: 10000, // 10 seconds timeout
 });
+
+// Helper function to convert request to cURL command
+const toCurlCommand = (config: any) => {
+    const headers = Object.entries(config.headers)
+        .map(([key, value]) => `-H "${key}: ${value}"`)
+        .join(' ');
+
+    const data = config.data ? `-d '${JSON.stringify(config.data)}'` : '';
+
+    return `curl -X ${config.method?.toUpperCase()} ${headers} ${data} "${config.baseURL}${config.url}"`;
+};
 
 // Add a request interceptor
 axiosInstance.interceptors.request.use(
@@ -32,6 +43,7 @@ axiosInstance.interceptors.request.use(
             console.log('----- REQUEST URL: ' + config.baseURL + config.url + ' -----');
             console.log('Request Headers:', JSON.stringify(config.headers, null, 2));
             console.log('Request Data:', JSON.stringify(config.data, null, 2));
+            console.log('cURL Command:', toCurlCommand(config));
         }
 
         return config;
@@ -57,14 +69,19 @@ axiosInstance.interceptors.response.use(
     (error) => {
         if (debugMode) {
             if (error.response) {
-                console.log('----- RESPONSE ERROR STATUS: ' + error.response.status + ' -----');
-                console.log('Response Data:', JSON.stringify(error.response.data, null, 2));
+                console.error('----- RESPONSE ERROR STATUS: ' + error.response.status + ' -----');
+                console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
             } else {
-                console.log('Request Error:', error.message);
+                console.error('Request Error:', error.message);
             }
         }
         return Promise.reject(error);
     }
 );
+
+// Log environment variables
+if (debugMode) {
+    console.log('#################----- BASE_URL from .env: ' + Config.BASE_URL + ' -----');
+}
 
 export default axiosInstance;
