@@ -25,6 +25,11 @@ const toCurlCommand = (config: any) => {
     return `curl -X ${config.method?.toUpperCase()} ${headers} ${data} "${config.baseURL}${config.url}"`;
 };
 
+const logSeparator = (message: string) => {
+    const line = '-'.repeat(30);
+    console.log(`\n${line}[${message}]${line}`);
+};
+
 axiosInstance.interceptors.request.use(
     async (config) => {
         try {
@@ -32,7 +37,6 @@ axiosInstance.interceptors.request.use(
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             } else {
-                // If there's no token, remove the Authorization header
                 delete config.headers.Authorization;
             }
         } catch (error) {
@@ -40,18 +44,20 @@ axiosInstance.interceptors.request.use(
         }
 
         if (debugMode) {
-            console.log('----- REQUEST METHOD: ' + config.method?.toUpperCase() + ' -----');
-            console.log('----- REQUEST URL: ' + config.baseURL + config.url + ' -----');
-            console.log('Request Headers:', JSON.stringify(config.headers, null, 2));
-            console.log('Request Data:', JSON.stringify(config.data, null, 2));
-            console.log('cURL Command:', toCurlCommand(config));
+            logSeparator(`Request to ${config.baseURL}${config.url}`);
+            // console.log(`Method: ${config.method?.toUpperCase()}`);
+            // console.log(`URL: ${config.baseURL}${config.url}`);
+            console.log('Headers:', JSON.stringify(config.headers, null, 2));
+            console.log('Data:', JSON.stringify(config.data, null, 2));
+            // console.log('cURL Command:', toCurlCommand(config));
         }
 
         return config;
     },
     (error) => {
         if (debugMode) {
-            console.error('Request Error:', error);
+            logSeparator('Request Error');
+            console.error(error);
         }
         return Promise.reject(error);
     }
@@ -60,19 +66,23 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
     (response) => {
         if (debugMode) {
-            console.log('----- RESPONSE STATUS: ' + response.status + ' -----');
-            console.log('Response Data:', JSON.stringify(response.data, null, 2));
+            logSeparator(`Response from ${response.config.url}`);
+            console.log(`Status: ${response.status}`);
+            console.log('Data:', JSON.stringify(response.data, null, 2));
+            logSeparator('End of Response');
         }
         return response;
     },
     (error) => {
         if (debugMode) {
+            logSeparator(`Error Response from ${error.config?.url || 'unknown endpoint'}`);
             if (error.response) {
-                console.error('----- RESPONSE ERROR STATUS: ' + error.response.status + ' -----');
-                console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+                console.error(`Status: ${error.response.status}`);
+                console.error('Data:', JSON.stringify(error.response.data, null, 2));
             } else {
-                console.error('Request Error:', error.message);
+                console.error('Error:', error.message);
             }
+            logSeparator('End of Error Response');
         }
         return Promise.reject(error);
     }
