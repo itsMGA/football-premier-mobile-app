@@ -237,15 +237,31 @@ const ManagerLoginForm: React.FC = () => {
     };
 
     const handleLoginSuccess = async (token: string) => {
-        await storeEncryptedToken(token);
-        setMessage('Logged in successfully');
-        setIsSuccess(true);
-        animateBall();
-        animateFlash();
+        try {
+            await storeEncryptedToken(token);
+            const storedToken = await getDecryptedToken();
 
-        const hasTeam = await checkUserTeam();
-        if (!hasTeam) {
-            setShowSelectClub(true);
+            if (storedToken) {
+                axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+                console.log('Set Authorization header in axios instance');
+            } else {
+                console.error('Failed to retrieve stored token');
+                throw new Error('Token storage verification failed');
+            }
+
+            setMessage('Logged in successfully');
+            setIsSuccess(true);
+            animateBall();
+            animateFlash();
+
+            const hasTeam = await checkUserTeam();
+            if (!hasTeam) {
+                setShowSelectClub(true);
+            }
+        } catch (error) {
+            console.error('Error in handleLoginSuccess:', error);
+            setMessage('Login failed. Please try again.');
+            setIsSuccess(false);
         }
     };
 

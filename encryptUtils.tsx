@@ -1,12 +1,12 @@
 import Config from 'react-native-config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { randomBytes, createCipheriv, createDecipheriv } from 'react-native-quick-crypto';
+import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'react-native-quick-crypto';
 import { Buffer } from 'buffer';
 
-
 const ENCRYPTION_KEY = Config.encription_key || 'fallback_key_32chars_long_____';
+
 // Ensure the key is 32 bytes long for AES-256
-const key = Buffer.from(ENCRYPTION_KEY.padEnd(32, '_').slice(0, 32));
+const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32));
 
 // Encrypt a string
 export const encrypt = (text: string): string => {
@@ -14,7 +14,8 @@ export const encrypt = (text: string): string => {
     const cipher = createCipheriv('aes-256-cbc', key, iv);
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    return iv.toString('hex') + ':' + encrypted;
+    const result = iv.toString('hex') + ':' + encrypted;
+    return result;
 };
 
 // Decrypt a string
@@ -25,17 +26,20 @@ export const decrypt = (text: string): string => {
     const decipher = createDecipheriv('aes-256-cbc', key, iv);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    const result = decrypted.toString();
+    return result;
 };
 
-// Encrypt a key
+// Encrypt a key consistently
 export const encryptKey = (key: string): string => {
-    return encrypt(key);
+    const hash = createHash('sha256');
+    hash.update(key);
+    return hash.digest('hex');
 };
 
-// Decrypt a key
+// Decrypt a key is now just returning the input since we're using a hash
 export const decryptKey = (encryptedKey: string): string => {
-    return decrypt(encryptedKey);
+    return encryptedKey;
 };
 
 // Encrypt and store data in AsyncStorage
@@ -50,7 +54,8 @@ export const retrieveAndDecrypt = async (key: string): Promise<string | null> =>
     const encryptedKey = encryptKey(key);
     const encryptedValue = await AsyncStorage.getItem(encryptedKey);
     if (encryptedValue) {
-        return decrypt(encryptedValue);
+        const decryptedValue = decrypt(encryptedValue);
+        return decryptedValue;
     }
     return null;
 };
