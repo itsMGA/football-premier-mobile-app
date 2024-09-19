@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import axiosInstance, { storeEncryptedToken, storeEncryptedUsername } from '../axiosConfig';
+import axiosInstance, { storeEncryptedToken, storeEncryptedUsername, getDecryptedToken } from '../axiosConfig';
 import SelectClubPanel from './teamSelection';
+import jwtDecode from 'jwt-decode';
 
 interface FieldError {
     [key: string]: string[];
@@ -110,7 +111,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({ errors }) => {
     );
 };
 
-const ManagerCreationForm: React.FC = () => {
+const ManagerLoginForm: React.FC = () => {
     const [managerName, setManagerName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -119,10 +120,31 @@ const ManagerCreationForm: React.FC = () => {
     const [isSuccess, setIsSuccess] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<FieldError>({});
     const [showSelectClub, setShowSelectClub] = useState(false);
+    const [isLoginMode, setIsLoginMode] = useState(true);
 
     const ballPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
     const ballOpacity = useRef(new Animated.Value(0)).current;
     const flashOpacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        checkExistingToken();
+    }, []);
+
+    const checkExistingToken = async () => {
+        const token = await getDecryptedToken();
+        if (token) {
+            try {
+                const decodedToken: any = jwtDecode(token);
+                const currentTime = Date.now() / 1000;
+                if (decodedToken.exp > currentTime) {
+                    // Token is valid, proceed with automatic login
+                    await handleLoginSuccess(token);
+                }
+            } catch (error) {
+                console.error('Error decoding token:', error);
+            }
+        }
+    };
 
     const createNewManager = async (
         managerName: string,
@@ -174,15 +196,64 @@ const ManagerCreationForm: React.FC = () => {
         return false;
     };
 
+    const loginManager = async (email: string, password: string): Promise<boolean> => {
+        setFieldErrors({});
+        setMessage('');
+
+        try {
+            console.log('Attempting to login...');
+            const response = await axiosInstance.post('accounts/login/', {
+                email,
+                password,
+            });
+
+            console.log('Login response:', response.data);
+
+            if (response.data.token) {
+                await handleLoginSuccess(response.data.token);
+                return true;
+            }
+        } catch (error) {
+            console.error('API Error:', error);
+            setIsSuccess(false);
+
+            if (axios.isAxiosError(error) && error.response) {
+                const responseData = error.response.data;
+                if (typeof responseData === 'object') {
+                    setFieldErrors(responseData);
+                } else {
+                    setMessage('An error occurred while logging in. Please try again.');
+                }
+            } else {
+                setMessage('An error occurred. Please check your internet connection and try again.');
+            }
+        }
+        return false;
+    };
+
+    const handleLoginSuccess = async (token: string) => {
+        await storeEncryptedToken(token);
+        setMessage('Logged in successfully');
+        setIsSuccess(true);
+        animateBall();
+        animateFlash();
+
+        const hasTeam = await checkUserTeam();
+        if (!hasTeam) {
+            setShowSelectClub(true);
+        }
+    };
+
     const checkUserTeam = async () => {
         try {
             const response = await axiosInstance.get('/accounts/user-progress/check-team/');
             // If the request is successful, the user has a team
             return true;
         } catch (error) {
-            // If we get a 404, the user doesn't have a team
             if (axios.isAxiosError(error) && error.response?.status === 404) {
-                return false;
+                if (error.response.data.detail === "User does not have a team") {
+                    return false;
+                }
             }
             // For any other error, we'll assume the user has a team to be safe
             console.error('Error checking user team:', error);
@@ -190,19 +261,23 @@ const ManagerCreationForm: React.FC = () => {
         }
     };
 
-    const handleCreateManager = async () => {
-        const success = await createNewManager(managerName, email, password, confirmPassword);
-        if (success) {
-            setManagerName('');
-            setEmail('');
-            setPassword('');
-            setConfirmPassword('');
-            animateBall();
-            animateFlash();
+    const handleSubmit = async () => {
+        if (isLoginMode) {
+            await loginManager(email, password);
+        } else {
+            const success = await createNewManager(managerName, email, password, confirmPassword);
+            if (success) {
+                setManagerName('');
+                setEmail('');
+                setPassword('');
+                setConfirmPassword('');
+                animateBall();
+                animateFlash();
 
-            const hasTeam = await checkUserTeam();
-            if (!hasTeam) {
-                setShowSelectClub(true);
+                const hasTeam = await checkUserTeam();
+                if (!hasTeam) {
+                    setShowSelectClub(true);
+                }
             }
         }
     };
@@ -270,14 +345,18 @@ const ManagerCreationForm: React.FC = () => {
             <Animated.View style={[styles.flashOverlay, { opacity: flashOpacity }]} />
             <ScrollView contentContainerStyle={styles.scrollView}>
                 <View style={styles.container}>
-                    <Text style={styles.title}>Create New Manager</Text>
-                    <AnimatedInput
-                        value={managerName}
-                        onChangeText={setManagerName}
-                        placeholder="Manager Name"
-                        error={!!fieldErrors['username']}
-                    />
-                    {fieldErrors['username'] && <ErrorMessage errors={fieldErrors['username']} />}
+                    <Text style={styles.title}>{isLoginMode ? 'Login' : 'Create New Manager'}</Text>
+                    {!isLoginMode && (
+                        <>
+                            <AnimatedInput
+                                value={managerName}
+                                onChangeText={setManagerName}
+                                placeholder="Manager Name"
+                                error={!!fieldErrors['username']}
+                            />
+                            {fieldErrors['username'] && <ErrorMessage errors={fieldErrors['username']} />}
+                        </>
+                    )}
                     <AnimatedInput
                         value={email}
                         onChangeText={setEmail}
@@ -294,16 +373,25 @@ const ManagerCreationForm: React.FC = () => {
                         error={!!fieldErrors['password']}
                     />
                     {fieldErrors['password'] && <ErrorMessage errors={fieldErrors['password']} />}
-                    <AnimatedInput
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        placeholder="Confirm Password"
-                        secureTextEntry
-                        error={!!fieldErrors['confirm_password']}
-                    />
-                    {fieldErrors['confirm_password'] && <ErrorMessage errors={fieldErrors['confirm_password']} />}
-                    <TouchableOpacity style={styles.button} onPress={handleCreateManager}>
-                        <Text style={styles.buttonText}>Create</Text>
+                    {!isLoginMode && (
+                        <>
+                            <AnimatedInput
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                placeholder="Confirm Password"
+                                secureTextEntry
+                                error={!!fieldErrors['confirm_password']}
+                            />
+                            {fieldErrors['confirm_password'] && <ErrorMessage errors={fieldErrors['confirm_password']} />}
+                        </>
+                    )}
+                    <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+                        <Text style={styles.buttonText}>{isLoginMode ? 'Login' : 'Create'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.switchButton} onPress={() => setIsLoginMode(!isLoginMode)}>
+                        <Text style={styles.switchButtonText}>
+                            {isLoginMode ? 'Need to create an account?' : 'Already have an account?'}
+                        </Text>
                     </TouchableOpacity>
                     {message ? (
                         <Text style={[styles.message, isSuccess ? styles.successMessage : styles.errorMessage]}>
@@ -419,6 +507,15 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginLeft: 16,
     },
+    switchButton: {
+        marginTop: 10,
+    },
+    switchButtonText: {
+        color: '#ffffff',
+        textAlign: 'center',
+        fontSize: 14,
+        textDecorationLine: 'underline',
+    },
 });
 
-export default ManagerCreationForm;
+export default ManagerLoginForm;
