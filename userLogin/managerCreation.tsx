@@ -171,8 +171,8 @@ const ManagerLoginForm: React.FC = () => {
 
             console.log('Create manager response:', response.data);
 
-            if (response.data.token) {
-                await storeEncryptedToken(response.data.token);
+            if (response.data.access) {
+                await storeEncryptedToken(response.data.access);
                 await storeEncryptedUsername(response.data.username);
                 setMessage('Manager created successfully');
                 setIsSuccess(true);
@@ -209,8 +209,8 @@ const ManagerLoginForm: React.FC = () => {
 
             console.log('Login response:', response.data);
 
-            if (response.data.token) {
-                await handleLoginSuccess(response.data.token);
+            if (response.data.access) {
+                await handleLoginSuccess(response.data.access);
                 return true;
             }
         } catch (error) {
