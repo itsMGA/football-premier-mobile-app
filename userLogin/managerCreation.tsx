@@ -92,6 +92,22 @@ const AnimatedInput: React.FC<AnimatedInputProps> = ({
     );
 };
 
+interface ErrorMessageProps {
+    errors: string[];
+}
+
+const ErrorMessage: React.FC<ErrorMessageProps> = ({ errors }) => {
+    return (
+        <View style={styles.errorContainer}>
+            {errors.map((error, index) => (
+                <Text key={index} style={styles.errorText}>
+                    {error}
+                </Text>
+            ))}
+        </View>
+    );
+};
+
 const ManagerCreationForm: React.FC = () => {
     const [managerName, setManagerName] = useState('');
     const [email, setEmail] = useState('');
@@ -112,10 +128,10 @@ const ManagerCreationForm: React.FC = () => {
         confirmPassword: string
     ): Promise<boolean> => {
         setFieldErrors({});
+        setMessage('');
 
         if (password !== confirmPassword) {
-            setMessage("Passwords don't match");
-            setIsSuccess(false);
+            setFieldErrors({ confirm_password: ["Passwords don't match"] });
             return false;
         }
 
@@ -144,14 +160,7 @@ const ManagerCreationForm: React.FC = () => {
             if (axios.isAxiosError(error) && error.response) {
                 const responseData = error.response.data;
                 if (typeof responseData === 'object') {
-                    const errors: FieldError = {};
-                    for (const [key, value] of Object.entries(responseData)) {
-                        if (Array.isArray(value)) {
-                            errors[key] = value;
-                        }
-                    }
-                    setFieldErrors(errors);
-                    setMessage('Please fill in all required fields correctly.');
+                    setFieldErrors(responseData);
                 } else {
                     setMessage('An error occurred while creating the account. Please try again.');
                 }
@@ -161,7 +170,6 @@ const ManagerCreationForm: React.FC = () => {
         }
         return false;
     };
-
 
     const handleCreateManager = async () => {
         const success = await createNewManager(managerName, email, password, confirmPassword);
@@ -174,7 +182,6 @@ const ManagerCreationForm: React.FC = () => {
             animateFlash();
         }
     };
-
 
     const animateFlash = () => {
         flashOpacity.setValue(0);
@@ -239,6 +246,7 @@ const ManagerCreationForm: React.FC = () => {
                         placeholder="Manager Name"
                         error={!!fieldErrors['username']}
                     />
+                    {fieldErrors['username'] && <ErrorMessage errors={fieldErrors['username']} />}
                     <AnimatedInput
                         value={email}
                         onChangeText={setEmail}
@@ -246,6 +254,7 @@ const ManagerCreationForm: React.FC = () => {
                         keyboardType="email-address"
                         error={!!fieldErrors['email']}
                     />
+                    {fieldErrors['email'] && <ErrorMessage errors={fieldErrors['email']} />}
                     <AnimatedInput
                         value={password}
                         onChangeText={setPassword}
@@ -253,6 +262,7 @@ const ManagerCreationForm: React.FC = () => {
                         secureTextEntry
                         error={!!fieldErrors['password']}
                     />
+                    {fieldErrors['password'] && <ErrorMessage errors={fieldErrors['password']} />}
                     <AnimatedInput
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
@@ -260,6 +270,7 @@ const ManagerCreationForm: React.FC = () => {
                         secureTextEntry
                         error={!!fieldErrors['confirm_password']}
                     />
+                    {fieldErrors['confirm_password'] && <ErrorMessage errors={fieldErrors['confirm_password']} />}
                     <TouchableOpacity style={styles.button} onPress={handleCreateManager}>
                         <Text style={styles.buttonText}>Create</Text>
                     </TouchableOpacity>
@@ -360,6 +371,14 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 20,
         left: 20,
+    },
+    errorContainer: {
+        marginBottom: 10,
+    },
+    errorText: {
+        color: '#FF6347',
+        fontSize: 14,
+        marginLeft: 16,
     },
 });
 
