@@ -207,11 +207,16 @@ const ManagerLoginForm: React.FC = () => {
                 password,
             });
 
-            console.log('Login response:', response.data);
+            // console.log('Login response:', response.data);
 
-            if (response.data.access) {
+            if (response.data && response.data.access) {
+                console.log('Access token received. Calling handleLoginSuccess...');
                 await handleLoginSuccess(response.data.access);
                 return true;
+            } else {
+                console.error('Login response does not contain access token:', response.data);
+                setMessage('Login failed. Please try again.');
+                return false;
             }
         } catch (error) {
             console.error('API Error:', error);

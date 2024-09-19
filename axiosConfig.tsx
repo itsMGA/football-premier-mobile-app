@@ -27,10 +27,16 @@ const toCurlCommand = (config: any) => {
 
 axiosInstance.interceptors.request.use(
     async (config) => {
-        const token = await encryptUtils.retrieveAndDecrypt('AUTH_TOKEN');
-
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        try {
+            const token = await getDecryptedToken();
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            } else {
+                // If there's no token, remove the Authorization header
+                delete config.headers.Authorization;
+            }
+        } catch (error) {
+            console.error('Error retrieving token:', error);
         }
 
         if (debugMode) {
@@ -71,10 +77,6 @@ axiosInstance.interceptors.response.use(
         return Promise.reject(error);
     }
 );
-
-if (debugMode) {
-    console.log('#################----- BASE_URL from .env: ' + Config.BASE_URL + ' -----');
-}
 
 export const storeEncryptedToken = async (token: string) => {
     await encryptUtils.encryptAndStore('AUTH_TOKEN', token);
