@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -26,6 +26,7 @@ interface AnimatedInputProps {
     keyboardType?: 'default' | 'email-address';
     error?: boolean;
 }
+
 const AnimatedInput: React.FC<AnimatedInputProps> = ({
     value,
     onChangeText,
@@ -35,60 +36,47 @@ const AnimatedInput: React.FC<AnimatedInputProps> = ({
     error,
 }) => {
     const [isFocused, setIsFocused] = useState(false);
-    const inputRef = useRef<TextInput>(null);
-    const focusAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
+    const animatedIsFocused = useRef(new Animated.Value(value === '' ? 0 : 1)).current;
 
-    const handleFocus = () => setIsFocused(true);
-    const handleBlur = () => setIsFocused(false);
-
-    React.useEffect(() => {
-        Animated.timing(focusAnim, {
-            toValue: (isFocused || value.length > 0) ? 1 : 0,
+    useEffect(() => {
+        Animated.timing(animatedIsFocused, {
+            toValue: (isFocused || value !== '') ? 1 : 0,
             duration: 200,
-            easing: Easing.bezier(0.4, 0, 0.2, 1),
             useNativeDriver: false,
         }).start();
-    }, [focusAnim, isFocused, value]);
+    }, [animatedIsFocused, isFocused, value]);
+
+    const labelStyle = {
+        position: 'absolute',
+        left: 16,
+        top: animatedIsFocused.interpolate({
+            inputRange: [0, 1],
+            outputRange: [18, 0],
+        }),
+        fontSize: animatedIsFocused.interpolate({
+            inputRange: [0, 1],
+            outputRange: [16, 12],
+        }),
+        color: animatedIsFocused.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['#aaa', '#000'],
+        }),
+    };
 
     return (
-        <View style={styles.inputContainer}>
-            <Animated.Text
-                style={[
-                    styles.floatingLabel,
-                    {
-                        transform: [
-                            {
-                                translateY: focusAnim.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [0, -25],
-                                }),
-                            },
-                        ],
-                        fontSize: focusAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [16, 12],
-                        }),
-                        color: focusAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: ['#a0a0a0', '#ffffff'],
-                        }),
-                    },
-                ]}
-            >
+        <View style={[styles.inputContainer, error && styles.inputContainerError]}>
+            <Animated.Text style={labelStyle}>
                 {placeholder}
             </Animated.Text>
             <TextInput
-                ref={inputRef}
-                style={[styles.input, error && styles.inputError]}
+                style={styles.input}
                 value={value}
                 onChangeText={onChangeText}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
                 secureTextEntry={secureTextEntry}
                 keyboardType={keyboardType}
-                placeholder={isFocused ? '' : placeholder}
-                placeholderTextColor="#a0a0a0"
-                underlineColorAndroid="transparent"
+                blurOnSubmit
             />
         </View>
     );
@@ -280,51 +268,37 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
         justifyContent: 'center',
-        backgroundColor: 'rgba(0, 100, 0, 0.7)',
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
     },
     title: {
         fontSize: 28,
         fontWeight: 'bold',
         marginBottom: 20,
         textAlign: 'center',
-        color: '#ffffff',
-        textShadowColor: 'rgba(0, 0, 0, 0.75)',
-        textShadowOffset: { width: -1, height: 1 },
-        textShadowRadius: 10,
+        color: '#333',
     },
-
     inputContainer: {
-        marginBottom: 15,
-        position: 'relative',
-        height: 50,
+        paddingTop: 18,
+        marginVertical: 12,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        backgroundColor: '#f8f8f8',
+    },
+    inputContainerError: {
+        borderColor: '#ff3333',
     },
     input: {
-        height: 50,
-        borderColor: '#ffffff',
-        borderWidth: 1,
-        paddingHorizontal: 10,
-        borderRadius: 5,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        color: '#ffffff',
+        height: 40,
         fontSize: 16,
-        textAlignVertical: 'center',
-    },
-    inputError: {
-        borderColor: 'red',
-    },
-    floatingLabel: {
-        position: 'absolute',
-        left: 10,
-        top: 15,
-        fontSize: 16,
-        color: '#a0a0a0',
-        zIndex: 1,
-        backgroundColor: 'transparent',
+        color: '#000',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
     },
     button: {
         backgroundColor: '#4CAF50',
         padding: 12,
-        borderRadius: 5,
+        borderRadius: 8,
         marginTop: 15,
     },
     buttonText: {
