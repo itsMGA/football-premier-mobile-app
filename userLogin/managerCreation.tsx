@@ -51,7 +51,7 @@ const AnimatedInput: React.FC<AnimatedInputProps> = ({
         left: 16,
         top: animatedIsFocused.interpolate({
             inputRange: [0, 1],
-            outputRange: [18, 0],
+            outputRange: [18, -10],
         }),
         fontSize: animatedIsFocused.interpolate({
             inputRange: [0, 1],
@@ -59,8 +59,17 @@ const AnimatedInput: React.FC<AnimatedInputProps> = ({
         }),
         color: animatedIsFocused.interpolate({
             inputRange: [0, 1],
-            outputRange: ['#aaa', '#000'],
+            outputRange: ['rgba(255, 255, 255, 0.5)', '#ffffff'],
         }),
+        backgroundColor: animatedIsFocused.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['transparent', 'rgba(0, 100, 0, 0.8)'],
+        }),
+        paddingHorizontal: animatedIsFocused.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 4],
+        }),
+        borderRadius: 4,
     };
 
     return (
@@ -77,6 +86,7 @@ const AnimatedInput: React.FC<AnimatedInputProps> = ({
                 secureTextEntry={secureTextEntry}
                 keyboardType={keyboardType}
                 blurOnSubmit
+                placeholderTextColor="rgba(255, 255, 255, 0.5)"
             />
         </View>
     );
@@ -93,6 +103,7 @@ const ManagerCreationForm: React.FC = () => {
 
     const ballPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
     const ballOpacity = useRef(new Animated.Value(0)).current;
+    const flashOpacity = useRef(new Animated.Value(0)).current;
 
     const createNewManager = async (
         managerName: string,
@@ -151,6 +162,7 @@ const ManagerCreationForm: React.FC = () => {
         return false;
     };
 
+
     const handleCreateManager = async () => {
         const success = await createNewManager(managerName, email, password, confirmPassword);
         if (success) {
@@ -159,7 +171,25 @@ const ManagerCreationForm: React.FC = () => {
             setPassword('');
             setConfirmPassword('');
             animateBall();
+            animateFlash();
         }
+    };
+
+
+    const animateFlash = () => {
+        flashOpacity.setValue(0);
+        Animated.sequence([
+            Animated.timing(flashOpacity, {
+                toValue: 0.7,
+                duration: 100,
+                useNativeDriver: true,
+            }),
+            Animated.timing(flashOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+        ]).start();
     };
 
     const animateBall = () => {
@@ -199,6 +229,7 @@ const ManagerCreationForm: React.FC = () => {
             source={require('../images/field.jpg')}
             style={styles.backgroundImage}
         >
+            <Animated.View style={[styles.flashOverlay, { opacity: flashOpacity }]} />
             <ScrollView contentContainerStyle={styles.scrollView}>
                 <View style={styles.container}>
                     <Text style={styles.title}>Create New Manager</Text>
@@ -261,6 +292,10 @@ const styles = StyleSheet.create({
         flex: 1,
         resizeMode: 'cover',
     },
+    flashOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'white',
+    },
     scrollView: {
         flexGrow: 1,
     },
@@ -268,38 +303,39 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
         justifyContent: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: 'rgba(0, 100, 0, 0.7)',
     },
     title: {
         fontSize: 28,
         fontWeight: 'bold',
         marginBottom: 20,
         textAlign: 'center',
-        color: '#333',
+        color: '#ffffff',
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 10,
     },
     inputContainer: {
-        paddingTop: 18,
-        marginVertical: 12,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 8,
-        backgroundColor: '#f8f8f8',
+        marginBottom: 20,
+        borderBottomWidth: 2,
+        borderBottomColor: 'rgba(255, 255, 255, 0.5)',
     },
     inputContainerError: {
-        borderColor: '#ff3333',
+        borderBottomColor: '#ff3333',
     },
     input: {
         height: 40,
         fontSize: 16,
-        color: '#000',
+        color: '#ffffff',
         paddingHorizontal: 16,
         paddingVertical: 8,
     },
     button: {
         backgroundColor: '#4CAF50',
         padding: 12,
-        borderRadius: 8,
-        marginTop: 15,
+        borderRadius: 25,
+        marginTop: 20,
+        elevation: 3,
     },
     buttonText: {
         color: 'white',
