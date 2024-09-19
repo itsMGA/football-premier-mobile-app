@@ -1,10 +1,10 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
+import * as encryptUtils from './encryptUtils';
 
-// Use Config to get the base URL and log it
 const baseURL = Config.BASE_URL || 'https://football.eliptum.tech/';
-const debugMode = true;  // Toggle this to true/false for enabling/disabling logs
+const debugMode = true;
 
 const axiosInstance = axios.create({
     baseURL,
@@ -12,10 +12,9 @@ const axiosInstance = axios.create({
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
-    timeout: 10000, // 10 seconds timeout
+    timeout: 10000,
 });
 
-// Helper function to convert request to cURL command
 const toCurlCommand = (config: any) => {
     const headers = Object.entries(config.headers)
         .map(([key, value]) => `-H "${key}: ${value}"`)
@@ -26,18 +25,14 @@ const toCurlCommand = (config: any) => {
     return `curl -X ${config.method?.toUpperCase()} ${headers} ${data} "${config.baseURL}${config.url}"`;
 };
 
-// Add a request interceptor
 axiosInstance.interceptors.request.use(
     async (config) => {
-        // Try to get the token from AsyncStorage
-        const token = await AsyncStorage.getItem('AUTH_TOKEN');
+        const token = await encryptUtils.retrieveAndDecrypt('AUTH_TOKEN');
 
-        // If a token is found, add it to the headers
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        // Debugging: Log request details if debugMode is true
         if (debugMode) {
             console.log('----- REQUEST METHOD: ' + config.method?.toUpperCase() + ' -----');
             console.log('----- REQUEST URL: ' + config.baseURL + config.url + ' -----');
@@ -56,10 +51,8 @@ axiosInstance.interceptors.request.use(
     }
 );
 
-// Add a response interceptor
 axiosInstance.interceptors.response.use(
     (response) => {
-        // Debugging: Log response details if debugMode is true
         if (debugMode) {
             console.log('----- RESPONSE STATUS: ' + response.status + ' -----');
             console.log('Response Data:', JSON.stringify(response.data, null, 2));
@@ -79,9 +72,24 @@ axiosInstance.interceptors.response.use(
     }
 );
 
-// Log environment variables
 if (debugMode) {
     console.log('#################----- BASE_URL from .env: ' + Config.BASE_URL + ' -----');
 }
+
+export const storeEncryptedToken = async (token: string) => {
+    await encryptUtils.encryptAndStore('AUTH_TOKEN', token);
+};
+
+export const storeEncryptedUsername = async (username: string) => {
+    await encryptUtils.encryptAndStore('username', username);
+};
+
+export const getDecryptedToken = async () => {
+    return await encryptUtils.retrieveAndDecrypt('AUTH_TOKEN');
+};
+
+export const getDecryptedUsername = async () => {
+    return await encryptUtils.retrieveAndDecrypt('username');
+};
 
 export default axiosInstance;

@@ -12,11 +12,87 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import axiosInstance from '../axiosConfig';
+import axiosInstance, { storeEncryptedToken, storeEncryptedUsername } from '../axiosConfig';
 
 interface FieldError {
     [key: string]: string[];
 }
+
+interface AnimatedInputProps {
+    value: string;
+    onChangeText: (text: string) => void;
+    placeholder: string;
+    secureTextEntry?: boolean;
+    keyboardType?: 'default' | 'email-address';
+    error?: boolean;
+}
+const AnimatedInput: React.FC<AnimatedInputProps> = ({
+    value,
+    onChangeText,
+    placeholder,
+    secureTextEntry,
+    keyboardType,
+    error,
+}) => {
+    const [isFocused, setIsFocused] = useState(false);
+    const inputRef = useRef<TextInput>(null);
+    const focusAnim = useRef(new Animated.Value(value ? 1 : 0)).current;
+
+    const handleFocus = () => setIsFocused(true);
+    const handleBlur = () => setIsFocused(false);
+
+    React.useEffect(() => {
+        Animated.timing(focusAnim, {
+            toValue: (isFocused || value.length > 0) ? 1 : 0,
+            duration: 200,
+            easing: Easing.bezier(0.4, 0, 0.2, 1),
+            useNativeDriver: false,
+        }).start();
+    }, [focusAnim, isFocused, value]);
+
+    return (
+        <View style={styles.inputContainer}>
+            <Animated.Text
+                style={[
+                    styles.floatingLabel,
+                    {
+                        transform: [
+                            {
+                                translateY: focusAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0, -25],
+                                }),
+                            },
+                        ],
+                        fontSize: focusAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [16, 12],
+                        }),
+                        color: focusAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['#a0a0a0', '#ffffff'],
+                        }),
+                    },
+                ]}
+            >
+                {placeholder}
+            </Animated.Text>
+            <TextInput
+                ref={inputRef}
+                style={[styles.input, error && styles.inputError]}
+                value={value}
+                onChangeText={onChangeText}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                secureTextEntry={secureTextEntry}
+                keyboardType={keyboardType}
+                placeholder={isFocused ? '' : placeholder}
+                placeholderTextColor="#a0a0a0"
+                underlineColorAndroid="transparent"
+            />
+        </View>
+    );
+};
 
 const ManagerCreationForm: React.FC = () => {
     const [managerName, setManagerName] = useState('');
@@ -56,8 +132,8 @@ const ManagerCreationForm: React.FC = () => {
             console.log('Create manager response:', response.data);
 
             if (response.data.token) {
-                await AsyncStorage.setItem('AUTH_TOKEN', response.data.token);
-                await AsyncStorage.setItem('username', response.data.username);
+                await storeEncryptedToken(response.data.token);
+                await storeEncryptedUsername(response.data.username);
                 setMessage('Manager created successfully');
                 setIsSuccess(true);
                 return true;
@@ -76,8 +152,6 @@ const ManagerCreationForm: React.FC = () => {
                         }
                     }
                     setFieldErrors(errors);
-
-                    // Set a generic error message for the user
                     setMessage('Please fill in all required fields correctly.');
                 } else {
                     setMessage('An error occurred while creating the account. Please try again.');
@@ -132,10 +206,6 @@ const ManagerCreationForm: React.FC = () => {
         ]).start();
     };
 
-    const getInputStyle = (fieldName: string) => {
-        return fieldErrors[fieldName] ? [styles.input, styles.inputError] : styles.input;
-    };
-
     return (
         <ImageBackground
             source={require('../images/field.jpg')}
@@ -144,36 +214,32 @@ const ManagerCreationForm: React.FC = () => {
             <ScrollView contentContainerStyle={styles.scrollView}>
                 <View style={styles.container}>
                     <Text style={styles.title}>Create New Manager</Text>
-                    <TextInput
-                        style={getInputStyle('username')}
-                        placeholder="Manager Name"
+                    <AnimatedInput
                         value={managerName}
                         onChangeText={setManagerName}
-                        placeholderTextColor="#a0a0a0"
+                        placeholder="Manager Name"
+                        error={!!fieldErrors['username']}
                     />
-                    <TextInput
-                        style={getInputStyle('email')}
-                        placeholder="Email"
+                    <AnimatedInput
                         value={email}
                         onChangeText={setEmail}
+                        placeholder="Email"
                         keyboardType="email-address"
-                        placeholderTextColor="#a0a0a0"
+                        error={!!fieldErrors['email']}
                     />
-                    <TextInput
-                        style={getInputStyle('password')}
-                        placeholder="Password"
+                    <AnimatedInput
                         value={password}
                         onChangeText={setPassword}
+                        placeholder="Password"
                         secureTextEntry
-                        placeholderTextColor="#a0a0a0"
+                        error={!!fieldErrors['password']}
                     />
-                    <TextInput
-                        style={getInputStyle('confirm_password')}
-                        placeholder="Confirm Password"
+                    <AnimatedInput
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
+                        placeholder="Confirm Password"
                         secureTextEntry
-                        placeholderTextColor="#a0a0a0"
+                        error={!!fieldErrors['confirm_password']}
                     />
                     <TouchableOpacity style={styles.button} onPress={handleCreateManager}>
                         <Text style={styles.buttonText}>Create</Text>
@@ -226,18 +292,34 @@ const styles = StyleSheet.create({
         textShadowOffset: { width: -1, height: 1 },
         textShadowRadius: 10,
     },
+
+    inputContainer: {
+        marginBottom: 15,
+        position: 'relative',
+        height: 50,
+    },
     input: {
-        height: 40,
+        height: 50,
         borderColor: '#ffffff',
         borderWidth: 1,
-        marginBottom: 15,
         paddingHorizontal: 10,
         borderRadius: 5,
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         color: '#ffffff',
+        fontSize: 16,
+        textAlignVertical: 'center',
     },
     inputError: {
         borderColor: 'red',
+    },
+    floatingLabel: {
+        position: 'absolute',
+        left: 10,
+        top: 15,
+        fontSize: 16,
+        color: '#a0a0a0',
+        zIndex: 1,
+        backgroundColor: 'transparent',
     },
     button: {
         backgroundColor: '#4CAF50',
