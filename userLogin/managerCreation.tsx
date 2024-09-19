@@ -9,10 +9,12 @@ import {
     Animated,
     Easing,
     ImageBackground,
+    Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import axiosInstance, { storeEncryptedToken, storeEncryptedUsername } from '../axiosConfig';
+import SelectClubPanel from './teamSelection';
 
 interface FieldError {
     [key: string]: string[];
@@ -116,6 +118,7 @@ const ManagerCreationForm: React.FC = () => {
     const [message, setMessage] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<FieldError>({});
+    const [showSelectClub, setShowSelectClub] = useState(false);
 
     const ballPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
     const ballOpacity = useRef(new Animated.Value(0)).current;
@@ -171,6 +174,22 @@ const ManagerCreationForm: React.FC = () => {
         return false;
     };
 
+    const checkUserTeam = async () => {
+        try {
+            const response = await axiosInstance.get('/accounts/user-progress/check-team/');
+            // If the request is successful, the user has a team
+            return true;
+        } catch (error) {
+            // If we get a 404, the user doesn't have a team
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                return false;
+            }
+            // For any other error, we'll assume the user has a team to be safe
+            console.error('Error checking user team:', error);
+            return true;
+        }
+    };
+
     const handleCreateManager = async () => {
         const success = await createNewManager(managerName, email, password, confirmPassword);
         if (success) {
@@ -180,7 +199,19 @@ const ManagerCreationForm: React.FC = () => {
             setConfirmPassword('');
             animateBall();
             animateFlash();
+
+            const hasTeam = await checkUserTeam();
+            if (!hasTeam) {
+                setShowSelectClub(true);
+            }
         }
+    };
+
+    const handleSelectTeam = async (teamName: string) => {
+        // Here you would typically make an API call to set the user's team
+        console.log(`Selected team: ${teamName}`);
+        // TODO: Implement API call to set user's team
+        setShowSelectClub(false);
     };
 
     const animateFlash = () => {
@@ -294,6 +325,14 @@ const ManagerCreationForm: React.FC = () => {
                     />
                 </View>
             </ScrollView>
+            <Modal
+                visible={showSelectClub}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowSelectClub(false)}
+            >
+                <SelectClubPanel onClose={() => setShowSelectClub(false)} onSelectTeam={handleSelectTeam} />
+            </Modal>
         </ImageBackground>
     );
 };
