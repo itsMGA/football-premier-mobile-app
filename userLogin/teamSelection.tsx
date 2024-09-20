@@ -53,20 +53,32 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(height)).current;
 
+    const MAX_SCROLL = 1250; // Maximum scroll distance for the elastic effect
+
     const panResponder = PanResponder.create({
         onMoveShouldSetPanResponder: (_, gestureState) => {
             return Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
         },
         onPanResponderMove: (_, gestureState) => {
-            panY.setValue(gestureState.dy);
+            const newY = gestureState.dy;
+            if (newY > 0) {
+                panY.setValue(Math.min(MAX_SCROLL, newY - (newY * newY) / (4 * MAX_SCROLL)));
+            } else {
+                panY.setValue(Math.max(-MAX_SCROLL, newY + (newY * newY) / (4 * MAX_SCROLL)));
+            }
         },
         onPanResponderRelease: (_, gestureState) => {
-            if (gestureState.dy > 20) {
+            if (gestureState.dy > 5) {
                 navigateSelection('prev');
-            } else if (gestureState.dy < -20) {
+            } else if (gestureState.dy < -5) {
                 navigateSelection('next');
             }
-            Animated.spring(panY, { toValue: 0, useNativeDriver: true }).start();
+            Animated.spring(panY, {
+                toValue: 0,
+                useNativeDriver: true,
+                tension: 50,
+                friction: 7,
+            }).start();
         },
     });
 
@@ -190,7 +202,6 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
             }
         }
     };
-
     const renderSelector = () => {
         let items: { id: number; name: string }[] = [];
         let selectedIndex = 0;
@@ -212,7 +223,20 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
 
         return (
             <Animated.View
-                style={[styles.selectorContainer, { transform: [{ translateY: panY }] }]}
+                style={[
+                    styles.selectorContainer,
+                    {
+                        transform: [
+                            {
+                                translateY: panY.interpolate({
+                                    inputRange: [-MAX_SCROLL, 0, MAX_SCROLL],
+                                    outputRange: [-10, 0, 10],
+                                    extrapolate: 'clamp',
+                                }),
+                            },
+                        ],
+                    },
+                ]}
                 {...panResponder.panHandlers}
             >
                 <TouchableOpacity
