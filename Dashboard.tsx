@@ -20,7 +20,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState<string | null>(null);
-    const slideAnim = useRef(new Animated.Value(-100)).current;
+    const slideAnim = useRef(new Animated.Value(-50)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -28,27 +28,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             Animated.parallel([
                 Animated.timing(slideAnim, {
                     toValue: 0,
-                    duration: 300,
+                    duration: 200,
                     useNativeDriver: true,
                     easing: Easing.out(Easing.cubic),
                 }),
                 Animated.timing(fadeAnim, {
                     toValue: 1,
-                    duration: 300,
+                    duration: 200,
                     useNativeDriver: true,
                 }),
             ]).start();
         } else {
             Animated.parallel([
                 Animated.timing(slideAnim, {
-                    toValue: -100,
-                    duration: 300,
+                    toValue: -50,
+                    duration: 200,
                     useNativeDriver: true,
                     easing: Easing.in(Easing.cubic),
                 }),
                 Animated.timing(fadeAnim, {
                     toValue: 0,
-                    duration: 300,
+                    duration: 200,
                     useNativeDriver: true,
                 }),
             ]).start();
@@ -57,11 +57,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
 
     const renderSubMenu = () => {
         const subMenuItems = {
-            'Club': ['Profile', 'Finances'],
+            'Club': ['Profile', 'Finances', 'Sponsors', 'Loans', 'Statistics'],
             'Team': ['Players', 'Training', 'Game Plan', 'Employees'],
             'Transfers': ['Transfer Market', 'My Transfers', 'History'],
             'Matches': ['League', 'Match History', 'Friendlies'],
-            'Finances': ['Sponsors', 'Loans', 'Statistics'],
             'Stadium': ['Upgrades', 'Maintenance', 'Events'],
         };
 
@@ -97,6 +96,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         );
     };
 
+    const navItems = ['Club', 'Team', 'Transfers', 'Matches', 'Stadium'];
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.content}>
@@ -106,14 +107,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             {renderSubMenu()}
             <View style={styles.navbar}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {['Club', 'Team', 'Transfers', 'Matches', 'Finances', 'Stadium'].map((item) => (
+                    {navItems.map((item) => (
                         <TouchableOpacity
                             key={item}
-                            style={[styles.navItem, activeTab === item && styles.activeNavItem]}
+                            style={styles.navItem}
                             onPress={() => setActiveTab(activeTab === item ? null : item)}
                         >
-                            <Icon name={getIconName(item)} size={24} color={activeTab === item ? '#4CAF50' : '#757575'} />
-                            <Text style={[styles.navText, activeTab === item && styles.activeNavText]}>{item}</Text>
+                            <Icon
+                                name={getIconName(item)}
+                                size={24}
+                                color={activeTab === item ? '#4CAF50' : '#757575'}
+                            />
+                            <Text style={[
+                                styles.navText,
+                                activeTab === item && styles.activeNavText
+                            ]}>
+                                {item}
+                            </Text>
+                            {activeTab === item && <View style={styles.activeItemUnderline} />}
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
@@ -132,7 +143,6 @@ const getIconName = (item: string): string => {
         case 'Team': return 'people';
         case 'Transfers': return 'swap-horiz';
         case 'Matches': return 'sports-soccer';
-        case 'Finances': return 'attach-money';
         case 'Stadium': return 'stadium';
         default: return 'circle';
     }
@@ -169,11 +179,8 @@ const styles = StyleSheet.create({
     navItem: {
         alignItems: 'center',
         paddingHorizontal: 15,
-        width: width / 6, // Ensure equal width for all items
-    },
-    activeNavItem: {
-        borderTopWidth: 2,
-        borderTopColor: '#4CAF50',
+        width: width / 5,
+        position: 'relative',
     },
     navText: {
         color: '#757575',
@@ -184,23 +191,44 @@ const styles = StyleSheet.create({
         color: '#4CAF50',
         fontWeight: 'bold',
     },
-    subMenuContainer: {
+    activeItemUnderline: {
+        position: 'absolute',
+        bottom: -10,
+        left: '25%',
+        right: '25%',
+        height: 2,
         backgroundColor: '#4CAF50',
+    },
+    subMenuContainer: {
+        backgroundColor: '#F0F0F0',
         paddingVertical: 10,
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 70, // Adjust this value based on your navbar height
+        bottom: 70, // Adjusted to be closer to the main navbar
+        borderTopWidth: 1,
+        borderTopColor: '#E0E0E0',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
     subMenuContent: {
         paddingHorizontal: 10,
     },
     subMenuItem: {
-        backgroundColor: '#81C784',
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        borderRadius: 20,
-        marginHorizontal: 5,
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 15,
+        marginHorizontal: 4,
+        elevation: 2,
     },
     subMenuItemFirst: {
         marginLeft: 10,
@@ -209,8 +237,9 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     subMenuText: {
-        color: '#FFF',
+        color: '#333',
         fontWeight: 'bold',
+        fontSize: 12,
     },
     logoutButton: {
         flexDirection: 'row',
