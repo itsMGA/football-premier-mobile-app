@@ -46,7 +46,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
     const fetchCountries = async () => {
         try {
             setLoading(true);
-            const response = await axiosInstance.get('league/countries/');
+            const response = await axiosInstance.get('/league/countries/');
             setCountries(response.data);
             setLoading(false);
         } catch (error) {
@@ -58,7 +58,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
     const fetchDivisions = async (countryId: number) => {
         try {
             setLoading(true);
-            const response = await axiosInstance.get(`league/available-divisions-by-country/?country_id=${countryId}`);
+            const response = await axiosInstance.get(`/league/available-divisions-by-country/?country_id=${countryId}`);
             setDivisions(response.data.available_divisions);
             setSelectedDivision(null);
             setTeams([]);
@@ -73,7 +73,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
     const fetchTeams = async (divisionId: number) => {
         try {
             setLoading(true);
-            const response = await axiosInstance.get(`league/available-teams-by-division/?division_id=${divisionId}`);
+            const response = await axiosInstance.get(`/league/available-teams-by-division/?division_id=${divisionId}`);
             setTeams(response.data.available_teams);
             setSelectedTeam(null);
             setLoading(false);
@@ -108,7 +108,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
         if (selectedTeam) {
             try {
                 setLoading(true);
-                await axiosInstance.post('accounts/user-progress/assign-team/', { team_id: selectedTeam.id });
+                await axiosInstance.post('/accounts/user-progress/assign-team/', { team_id: selectedTeam.id });
                 onSelectTeam(selectedTeam.id);
                 setLoading(false);
             } catch (error) {

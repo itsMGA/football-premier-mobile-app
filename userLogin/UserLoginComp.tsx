@@ -1,4 +1,4 @@
-// managerCreation.tsx
+// UserLoginComp.tsx
 
 import React, { useState, useRef } from 'react';
 import {
@@ -11,23 +11,22 @@ import {
     ImageBackground,
 } from 'react-native';
 import axios from 'axios';
-import axiosInstance, { storeEncryptedToken, storeEncryptedUsername } from '../axiosConfig';
+import axiosInstance, { storeEncryptedToken, getDecryptedToken } from '../axiosConfig';
+import jwtDecode from 'jwt-decode';
 import { AnimatedInput, ErrorMessage } from './SharedComponents';
 
 interface FieldError {
     [key: string]: string[];
 }
 
-interface ManagerCreationProps {
-    onCreateSuccess: () => void;
-    switchToLogin: () => void;
+interface UserLoginCompProps {
+    onLoginSuccess: () => void;
+    switchToRegister: () => void;
 }
 
-const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, switchToLogin }) => {
-    const [managerName, setManagerName] = useState('');
+const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToRegister }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<FieldError>({});
@@ -36,40 +35,25 @@ const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, swit
     const ballOpacity = useRef(new Animated.Value(0)).current;
     const flashOpacity = useRef(new Animated.Value(0)).current;
 
-    const createNewManager = async (
-        managerName: string,
-        email: string,
-        password: string,
-        confirmPassword: string
-    ): Promise<boolean> => {
+    const loginManager = async (email: string, password: string): Promise<boolean> => {
         setFieldErrors({});
         setMessage('');
 
-        if (password !== confirmPassword) {
-            setFieldErrors({ confirm_password: ["Passwords don't match"] });
-            return false;
-        }
-
         try {
-            console.log('Attempting to create manager...');
-            const response = await axiosInstance.post('accounts/create/', {
-                username: managerName,
+            console.log('Attempting to login...');
+            const response = await axiosInstance.post('accounts/login/', {
                 email,
                 password,
-                confirm_password: confirmPassword,
             });
 
-            console.log('Create manager response:', response.data);
-
-            if (response.data.access) {
-                await storeEncryptedToken(response.data.access);
-                await storeEncryptedUsername(response.data.username);
-                setMessage('Manager created successfully');
-                setIsSuccess(true);
-                animateBall();
-                animateFlash();
-                onCreateSuccess();
+            if (response.data && response.data.access) {
+                console.log('Access token received. Calling handleLoginSuccess...');
+                await handleLoginSuccess(response.data.access);
                 return true;
+            } else {
+                console.error('Login response does not contain access token:', response.data);
+                setMessage('Login failed. Please try again.');
+                return false;
             }
         } catch (error) {
             console.error('API Error:', error);
@@ -80,7 +64,7 @@ const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, swit
                 if (typeof responseData === 'object') {
                     setFieldErrors(responseData);
                 } else {
-                    setMessage('An error occurred while creating the account. Please try again.');
+                    setMessage('An error occurred while logging in. Please try again.');
                 }
             } else {
                 setMessage('An error occurred. Please check your internet connection and try again.');
@@ -89,8 +73,33 @@ const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, swit
         return false;
     };
 
+    const handleLoginSuccess = async (token: string) => {
+        try {
+            await storeEncryptedToken(token);
+            const storedToken = await getDecryptedToken();
+
+            if (storedToken) {
+                axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+                console.log('Set Authorization header in axios instance');
+            } else {
+                console.error('Failed to retrieve stored token');
+                throw new Error('Token storage verification failed');
+            }
+
+            setMessage('Logged in successfully');
+            setIsSuccess(true);
+            animateBall();
+            animateFlash();
+            onLoginSuccess();
+        } catch (error) {
+            console.error('Error in handleLoginSuccess:', error);
+            setMessage('Login failed. Please try again.');
+            setIsSuccess(false);
+        }
+    };
+
     const handleSubmit = async () => {
-        await createNewManager(managerName, email, password, confirmPassword);
+        await loginManager(email, password);
     };
 
     const animateFlash = () => {
@@ -148,14 +157,7 @@ const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, swit
         >
             <Animated.View style={[styles.flashOverlay, { opacity: flashOpacity }]} />
             <View style={styles.container}>
-                <Text style={styles.title}>Create New Manager</Text>
-                <AnimatedInput
-                    value={managerName}
-                    onChangeText={setManagerName}
-                    placeholder="Manager Name"
-                    error={!!fieldErrors['username']}
-                />
-                {fieldErrors['username'] && <ErrorMessage errors={fieldErrors['username']} />}
+                <Text style={styles.title}>Login</Text>
                 <AnimatedInput
                     value={email}
                     onChangeText={setEmail}
@@ -172,20 +174,12 @@ const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, swit
                     error={!!fieldErrors['password']}
                 />
                 {fieldErrors['password'] && <ErrorMessage errors={fieldErrors['password']} />}
-                <AnimatedInput
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    placeholder="Confirm Password"
-                    secureTextEntry
-                    error={!!fieldErrors['confirm_password']}
-                />
-                {fieldErrors['confirm_password'] && <ErrorMessage errors={fieldErrors['confirm_password']} />}
                 <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                    <Text style={styles.buttonText}>Create Account</Text>
+                    <Text style={styles.buttonText}>Login</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.switchButton} onPress={switchToLogin}>
+                <TouchableOpacity style={styles.switchButton} onPress={switchToRegister}>
                     <Text style={styles.switchButtonText}>
-                        Already have an account?
+                        Need to create an account?
                     </Text>
                 </TouchableOpacity>
                 {message ? (
@@ -278,4 +272,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default ManagerCreation;
+export default UserLoginComp;

@@ -104,4 +104,9 @@ export const getDecryptedUsername = async () => {
     return await encryptUtils.retrieveAndDecrypt('username');
 };
 
+export const removeEncryptedToken = async (): Promise<void> => {
+    const encryptedKey = encryptUtils.encryptKey('AUTH_TOKEN');
+    await AsyncStorage.removeItem(encryptedKey);
+};
+
 export default axiosInstance;
