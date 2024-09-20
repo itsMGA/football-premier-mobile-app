@@ -202,6 +202,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
             }
         }
     };
+
     const renderSelector = () => {
         let items: { id: number; name: string }[] = [];
         let selectedIndex = 0;
@@ -243,7 +244,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
                     style={styles.arrowButton}
                     onPress={() => navigateSelection('prev')}
                 >
-                    <Icon name="arrow-upward" size={30} color="#FFFFFF" />
+                    <Icon name="keyboard-arrow-up" size={30} color="#FFFFFF" />
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.selectedItem}
@@ -255,7 +256,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
                     style={styles.arrowButton}
                     onPress={() => navigateSelection('next')}
                 >
-                    <Icon name="arrow-downward" size={30} color="#FFFFFF" />
+                    <Icon name="keyboard-arrow-down" size={30} color="#FFFFFF" />
                 </TouchableOpacity>
             </Animated.View>
         );
@@ -421,6 +422,15 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
         borderRadius: 25,
         marginVertical: 5,
+        width: 50,
+        height: 50,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    arrowText: {
+        color: '#FFFFFF',
+        fontSize: 24,
+        fontWeight: 'bold',
     },
     selectedItem: {
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
