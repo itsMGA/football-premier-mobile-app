@@ -8,9 +8,10 @@ import {
     SafeAreaView,
     Animated,
     Dimensions,
-    Easing,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import axiosInstance from './axiosConfig';
+import FriendliesComponent from './DasboardComponents/FriendliesComponent';
 
 const { width } = Dimensions.get('window');
 
@@ -18,10 +19,22 @@ interface DashboardProps {
     onLogout: () => void;
 }
 
+interface Notification {
+    type: string;
+    message: string;
+}
+
 const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState<string | null>(null);
+    const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [showFriendliesModal, setShowFriendliesModal] = useState(false);
     const slideAnim = useRef(new Animated.Value(-50)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        fetchNotifications();
+    }, []);
 
     useEffect(() => {
         if (activeTab) {
@@ -30,7 +43,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                     toValue: 0,
                     duration: 200,
                     useNativeDriver: true,
-                    easing: Easing.out(Easing.cubic),
                 }),
                 Animated.timing(fadeAnim, {
                     toValue: 1,
@@ -44,7 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                     toValue: -50,
                     duration: 200,
                     useNativeDriver: true,
-                    easing: Easing.in(Easing.cubic),
                 }),
                 Animated.timing(fadeAnim, {
                     toValue: 0,
@@ -54,6 +65,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             ]).start();
         }
     }, [activeTab]);
+    const fetchNotifications = async () => {
+        try {
+            const response = await axiosInstance.get('/league/team-notifications/');
+            setNotifications(response.data);
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+            setNotifications([]);
+        }
+    };
 
     const renderSubMenu = () => {
         const subMenuItems = {
@@ -87,8 +107,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                                 index === 0 && styles.subMenuItemFirst,
                                 index === subMenuItems[activeTab].length - 1 && styles.subMenuItemLast,
                             ]}
+                            onPress={() => {
+                                setActiveSubMenu(item);
+                                if (item === 'Friendlies') {
+                                    setShowFriendliesModal(true);
+                                }
+                            }}
                         >
                             <Text style={styles.subMenuText}>{item}</Text>
+                            {item === 'Friendlies' && notifications.filter(n => n.type === 'friendly_challenge').length > 0 && (
+                                <View style={styles.notificationBadge}>
+                                    <Text style={styles.notificationText}>
+                                        {notifications.filter(n => n.type === 'friendly_challenge').length}
+                                    </Text>
+                                </View>
+                            )}
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
@@ -103,8 +136,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             <View style={styles.content}>
                 <Text style={styles.title}>Welcome to Your Dashboard</Text>
                 <Text style={styles.activeTabText}>Active Tab: {activeTab || 'None'}</Text>
+                <Text style={styles.activeTabText}>Active Sub-Menu: {activeSubMenu || 'None'}</Text>
             </View>
             {renderSubMenu()}
+            <FriendliesComponent
+                visible={showFriendliesModal}
+                onClose={() => setShowFriendliesModal(false)}
+                onNotificationUpdate={fetchNotifications}
+            />
             <View style={styles.navbar}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {navItems.map((item) => (
@@ -124,6 +163,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                             ]}>
                                 {item}
                             </Text>
+                            {item === 'Matches' && notifications.length > 0 && (
+                                <View style={styles.notificationBadge}>
+                                    <Text style={styles.notificationText}>{notifications.length}</Text>
+                                </View>
+                            )}
                             {activeTab === item && <View style={styles.activeItemUnderline} />}
                         </TouchableOpacity>
                     ))}
@@ -205,7 +249,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 60, // Adjusted to be closer to the main navbar
+        bottom: 60,
         borderTopWidth: 1,
         borderTopColor: '#E0E0E0',
         borderBottomWidth: 1,
@@ -255,6 +299,22 @@ const styles = StyleSheet.create({
     logoutButtonText: {
         color: 'white',
         marginLeft: 10,
+    },
+    notificationBadge: {
+        position: 'absolute',
+        right: -5,
+        top: -5,
+        backgroundColor: 'red',
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    notificationText: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: 'bold',
     },
 });
 
