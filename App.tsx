@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView, StatusBar, StyleSheet, View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -64,14 +64,16 @@ function App(): React.JSX.Element {
     await checkUserTeam();
   };
 
-  const handleTeamSelection = async (teamId: string) => {
+  const handleTeamSelection = useCallback(async (teamId: string) => {
     try {
-      await axiosInstance.post('accounts/user-progress/assign-team/', { team_id: teamId });
+      console.log('Team selected in App.tsx:', teamId);
       setHasTeam(true);
+      // No need to make an API call here, as it's already done in SelectClubPanel
     } catch (error) {
-      console.error('Error assigning team:', error);
+      console.error('Error handling team selection:', error);
+      setHasTeam(false);
     }
-  };
+  }, []);
 
   const handleCloseTeamSelection = () => {
     setIsLoggedIn(false);

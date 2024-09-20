@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     StyleSheet,
     Text,
@@ -48,6 +48,9 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<'country' | 'division' | 'team'>('country');
     const [showModal, setShowModal] = useState(false);
+
+    const [isAssigning, setIsAssigning] = useState(false);
+    const lastAssignTime = useRef(0);
 
     const panY = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -188,20 +191,34 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
             setStep('division');
         }
     };
+    const handleSelectTeam = useCallback(async () => {
+        const now = Date.now();
+        if (isAssigning || now - lastAssignTime.current < 1000) {
+            console.log('Preventing duplicate assignment');
+            return;
+        }
 
-    const handleSelectTeam = async () => {
         if (teams.length > 0) {
             try {
+                setIsAssigning(true);
+                lastAssignTime.current = now;
+                console.log('Assigning team:', teams[selectedTeamIndex].id);
                 setLoading(true);
                 await axiosInstance.post('/accounts/user-progress/assign-team/', { team_id: teams[selectedTeamIndex].id });
-                onSelectTeam(teams[selectedTeamIndex].id);
                 setLoading(false);
+                console.log('Team assigned successfully');
+                onSelectTeam(teams[selectedTeamIndex].id.toString()); // Call this after successful assignment
             } catch (error) {
                 console.error('Error assigning team:', error);
                 setLoading(false);
+            } finally {
+                setIsAssigning(false);
             }
         }
-    };
+    }, [teams, selectedTeamIndex, onSelectTeam]);
+
+
+
 
     const renderSelector = () => {
         let items: { id: number; name: string }[] = [];
