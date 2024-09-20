@@ -373,7 +373,15 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
                                 'Select Your Team'}
                     </Text>
 
-                    {loading && <ActivityIndicator size="large" color="#ffffff" />}
+                    <View style={styles.loadingContainer}>
+                        {loading && (
+                            <ActivityIndicator
+                                size="large"
+                                color="#ffffff"
+                                style={{ position: 'absolute' }}
+                            />
+                        )}
+                    </View>
 
                     {renderSelector()}
 
@@ -538,6 +546,13 @@ const styles = StyleSheet.create({
     closeModalButtonText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    loadingContainer: {
+        height: 50,  // Adjust this value as needed
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
     },
 });
 

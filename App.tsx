@@ -66,9 +66,9 @@ function App(): React.JSX.Element {
 
   const handleTeamSelection = useCallback(async (teamId: string) => {
     try {
-      console.log('Team selected in App.tsx:', teamId);
+      console.log('Assigning team in App.tsx:', teamId);
       setHasTeam(true);
-      // No need to make an API call here, as it's already done in SelectClubPanel
+      // Remove the API call from here, as it's already done in SelectClubPanel
     } catch (error) {
       console.error('Error handling team selection:', error);
       setHasTeam(false);
