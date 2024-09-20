@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 70, // Adjusted to be closer to the main navbar
+        bottom: 60, // Adjusted to be closer to the main navbar
         borderTopWidth: 1,
         borderTopColor: '#E0E0E0',
         borderBottomWidth: 1,
@@ -229,6 +229,7 @@ const styles = StyleSheet.create({
         borderRadius: 15,
         marginHorizontal: 4,
         elevation: 2,
+        marginBottom: 2,
     },
     subMenuItemFirst: {
         marginLeft: 10,
