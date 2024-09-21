@@ -19,7 +19,7 @@ interface FriendliesComponentProps {
 
 interface FriendlyChallenge {
     id: number;
-    challenger: string;
+    challenger?: string;
     challenged: string;
     proposed_date: string;
     status: string;
@@ -34,7 +34,8 @@ interface Team {
 
 const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificationUpdate }) => {
     const [friendlyMatches, setFriendlyMatches] = useState<FriendlyChallenge[]>([]);
-    const [friendlyChallenges, setFriendlyChallenges] = useState<FriendlyChallenge[]>([]);
+    const [receivedChallenges, setReceivedChallenges] = useState<FriendlyChallenge[]>([]);
+    const [sentChallenges, setSentChallenges] = useState<FriendlyChallenge[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<Team[]>([]);
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
@@ -58,7 +59,8 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const fetchFriendlyChallenges = async () => {
         try {
             const response = await axiosInstance.get('matches/friendly-challenges/');
-            setFriendlyChallenges(response.data.received_challenges);
+            setReceivedChallenges(response.data.received_challenges);
+            setSentChallenges(response.data.sent_challenges);
         } catch (error) {
             console.error('Error fetching friendly challenges:', error);
         }
@@ -132,25 +134,28 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const renderFriendlyChallenge = ({ item }: { item: FriendlyChallenge }) => (
         <View style={styles.challengeItem}>
             <View style={styles.challengeInfo}>
-                <Text style={styles.challengeText}>{item.challenger} vs {item.challenged}</Text>
+                <Text style={styles.challengeText}>{item.challenger || 'Your Team'} vs {item.challenged}</Text>
                 <Text style={styles.challengeDate}>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
+                <Text style={styles.challengeStatus}>Status: {item.status}</Text>
             </View>
-            <View style={styles.challengeActions}>
-                <TouchableOpacity
-                    style={[styles.button, styles.acceptButton]}
-                    onPress={() => respondToChallenge(item.id, 'accept')}
-                >
-                    <Icon name="checkmark-circle" size={24} color="white" />
-                    <Text style={styles.buttonText}>Accept</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.button, styles.declineButton]}
-                    onPress={() => respondToChallenge(item.id, 'decline')}
-                >
-                    <Icon name="close-circle" size={24} color="white" />
-                    <Text style={styles.buttonText}>Decline</Text>
-                </TouchableOpacity>
-            </View>
+            {item.challenger && ( // Only show action buttons for received challenges
+                <View style={styles.challengeActions}>
+                    <TouchableOpacity
+                        style={[styles.button, styles.acceptButton]}
+                        onPress={() => respondToChallenge(item.id, 'accept')}
+                    >
+                        <Icon name="checkmark-circle" size={24} color="white" />
+                        <Text style={styles.buttonText}>Accept</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.button, styles.declineButton]}
+                        onPress={() => respondToChallenge(item.id, 'decline')}
+                    >
+                        <Icon name="close-circle" size={24} color="white" />
+                        <Text style={styles.buttonText}>Decline</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 
@@ -165,18 +170,30 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Friendly Challenges</Text>
-                    {friendlyChallenges.length === 0 ? (
+                    <Text style={styles.sectionTitle}>Received Challenges</Text>
+                    {receivedChallenges.length === 0 ? (
                         <Text style={styles.noDataText}>No pending challenges</Text>
                     ) : (
                         <FlatList
-                            data={friendlyChallenges}
+                            data={receivedChallenges}
                             renderItem={renderFriendlyChallenge}
                             keyExtractor={(item) => item.id.toString()}
                             style={styles.challengeList}
                         />
                     )}
                 </View>
+
+                {sentChallenges.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Sent Challenges</Text>
+                        <FlatList
+                            data={sentChallenges}
+                            renderItem={renderFriendlyChallenge}
+                            keyExtractor={(item) => item.id.toString()}
+                            style={styles.challengeList}
+                        />
+                    </View>
+                )}
 
                 <TouchableOpacity style={styles.createChallengeButton} onPress={() => setIsModalVisible(true)}>
                     <Icon name="add-circle" size={24} color="white" />
@@ -332,6 +349,11 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     challengeDate: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 5,
+    },
+    challengeStatus: {
         fontSize: 14,
         color: '#666',
         marginTop: 5,
