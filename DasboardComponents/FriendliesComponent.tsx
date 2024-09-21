@@ -7,7 +7,10 @@ import {
     ScrollView,
     TextInput,
     FlatList,
+    Modal,
+    SafeAreaView,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import axiosInstance from '../axiosConfig';
 
 interface FriendliesComponentProps {
@@ -36,6 +39,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const [searchResults, setSearchResults] = useState<Team[]>([]);
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const [proposedDate, setProposedDate] = useState('');
+    const [isModalVisible, setIsModalVisible] = useState(false);
 
     useEffect(() => {
         fetchFriendlyMatches();
@@ -81,6 +85,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
             onNotificationUpdate();
             setSelectedTeam(null);
             setProposedDate('');
+            setIsModalVisible(false);
         } catch (error) {
             console.error('Error creating friendly challenge:', error);
         }
@@ -106,7 +111,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                 <Text style={styles.tableHeaderCell}>Status</Text>
             </View>
             {friendlyMatches.length === 0 ? (
-                <Text style={styles.noMatchesText}>No matches scheduled</Text>
+                <Text style={styles.noDataText}>No matches scheduled</Text>
             ) : (
                 <FlatList
                     data={friendlyMatches}
@@ -126,19 +131,23 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
 
     const renderFriendlyChallenge = ({ item }: { item: FriendlyChallenge }) => (
         <View style={styles.challengeItem}>
-            <Text style={styles.challengeText}>{item.challenger} vs {item.challenged}</Text>
-            <Text style={styles.challengeText}>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
+            <View style={styles.challengeInfo}>
+                <Text style={styles.challengeText}>{item.challenger} vs {item.challenged}</Text>
+                <Text style={styles.challengeDate}>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
+            </View>
             <View style={styles.challengeActions}>
                 <TouchableOpacity
                     style={[styles.button, styles.acceptButton]}
                     onPress={() => respondToChallenge(item.id, 'accept')}
                 >
+                    <Icon name="checkmark-circle" size={24} color="white" />
                     <Text style={styles.buttonText}>Accept</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.button, styles.declineButton]}
                     onPress={() => respondToChallenge(item.id, 'decline')}
                 >
+                    <Icon name="close-circle" size={24} color="white" />
                     <Text style={styles.buttonText}>Decline</Text>
                 </TouchableOpacity>
             </View>
@@ -146,64 +155,19 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     );
 
     return (
-        <ScrollView style={styles.container}>
-            <Text style={styles.mainTitle}>Friendly Matches Hub</Text>
+        <SafeAreaView style={styles.container}>
+            <ScrollView>
+                <Text style={styles.mainTitle}>Friendly Matches</Text>
 
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Friendly Matches</Text>
-                {renderFriendlyMatchesTable()}
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.challengeSection}>
-                <View style={styles.createChallengeContainer}>
-                    <Text style={styles.sectionTitle}>Challenge to Friendly</Text>
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search teams..."
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                    <TouchableOpacity style={styles.button} onPress={searchTeams}>
-                        <Text style={styles.buttonText}>Search</Text>
-                    </TouchableOpacity>
-                    {searchResults.length > 0 && (
-                        <ScrollView style={styles.searchResults}>
-                            {searchResults.map((team) => (
-                                <TouchableOpacity
-                                    key={team.id}
-                                    style={styles.teamItem}
-                                    onPress={() => setSelectedTeam(team)}
-                                >
-                                    <Text style={styles.teamName}>{team.name}</Text>
-                                    <Text style={styles.teamInfo}>{team.country} - {team.division}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    )}
-                    {selectedTeam && (
-                        <View style={styles.selectedTeam}>
-                            <Text style={styles.selectedTeamText}>Selected Team: {selectedTeam.name}</Text>
-                            <TextInput
-                                style={styles.dateInput}
-                                placeholder="Proposed Date (YYYY-MM-DD)"
-                                value={proposedDate}
-                                onChangeText={setProposedDate}
-                            />
-                            <TouchableOpacity style={styles.button} onPress={createFriendlyChallenge}>
-                                <Text style={styles.buttonText}>Create Friendly Challenge</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Scheduled Matches</Text>
+                    {renderFriendlyMatchesTable()}
                 </View>
 
-                <View style={styles.divider} />
-
-                <View style={styles.challengesContainer}>
+                <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Friendly Challenges</Text>
                     {friendlyChallenges.length === 0 ? (
-                        <Text style={styles.noChallengesText}>No pending challenges</Text>
+                        <Text style={styles.noDataText}>No pending challenges</Text>
                     ) : (
                         <FlatList
                             data={friendlyChallenges}
@@ -213,26 +177,94 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                         />
                     )}
                 </View>
-            </View>
-        </ScrollView>
+
+                <TouchableOpacity style={styles.createChallengeButton} onPress={() => setIsModalVisible(true)}>
+                    <Icon name="add-circle" size={24} color="white" />
+                    <Text style={styles.createChallengeButtonText}>Create Challenge</Text>
+                </TouchableOpacity>
+
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={isModalVisible}
+                    onRequestClose={() => setIsModalVisible(false)}
+                >
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Challenge to Friendly</Text>
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search teams..."
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                            />
+                            <TouchableOpacity style={styles.searchButton} onPress={searchTeams}>
+                                <Icon name="search" size={24} color="white" />
+                                <Text style={styles.buttonText}>Search</Text>
+                            </TouchableOpacity>
+                            {searchResults.length > 0 && (
+                                <ScrollView style={styles.searchResults}>
+                                    {searchResults.map((team) => (
+                                        <TouchableOpacity
+                                            key={team.id}
+                                            style={styles.teamItem}
+                                            onPress={() => setSelectedTeam(team)}
+                                        >
+                                            <Text style={styles.teamName}>{team.name}</Text>
+                                            <Text style={styles.teamInfo}>{team.country} - {team.division}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            )}
+                            {selectedTeam && (
+                                <View style={styles.selectedTeam}>
+                                    <Text style={styles.selectedTeamText}>Selected: {selectedTeam.name}</Text>
+                                    <TextInput
+                                        style={styles.dateInput}
+                                        placeholder="Proposed Date (YYYY-MM-DD)"
+                                        value={proposedDate}
+                                        onChangeText={setProposedDate}
+                                    />
+                                    <TouchableOpacity style={styles.createButton} onPress={createFriendlyChallenge}>
+                                        <Icon name="send" size={24} color="white" />
+                                        <Text style={styles.buttonText}>Send Challenge</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                            <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
+                                <Icon name="close" size={24} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+            </ScrollView>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 20,
         backgroundColor: '#F5F5F5',
     },
     mainTitle: {
         fontSize: 28,
         fontWeight: 'bold',
-        marginBottom: 20,
+        margin: 20,
         textAlign: 'center',
         color: '#333',
     },
     section: {
+        marginHorizontal: 20,
         marginBottom: 20,
+        backgroundColor: 'white',
+        borderRadius: 10,
+        padding: 15,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
     sectionTitle: {
         fontSize: 22,
@@ -241,9 +273,10 @@ const styles = StyleSheet.create({
         color: '#444',
     },
     tableContainer: {
-        backgroundColor: 'white',
         borderRadius: 8,
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
     },
     tableHeader: {
         flexDirection: 'row',
@@ -254,6 +287,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontWeight: 'bold',
         textAlign: 'center',
+        color: '#333',
     },
     tableRow: {
         flexDirection: 'row',
@@ -264,82 +298,13 @@ const styles = StyleSheet.create({
     tableCell: {
         flex: 1,
         textAlign: 'center',
+        color: '#444',
     },
-    noMatchesText: {
+    noDataText: {
         textAlign: 'center',
         padding: 20,
         fontStyle: 'italic',
         color: '#666',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#ccc',
-        marginVertical: 20,
-    },
-    challengeSection: {
-        flexDirection: 'column',
-    },
-    createChallengeContainer: {
-        marginBottom: 20,
-    },
-    challengesContainer: {
-        marginTop: 20,
-    },
-    searchInput: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        padding: 10,
-        marginBottom: 10,
-    },
-    button: {
-        backgroundColor: '#4CAF50',
-        padding: 12,
-        borderRadius: 5,
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    buttonText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    searchResults: {
-        maxHeight: 150,
-        marginBottom: 10,
-        backgroundColor: 'white',
-        borderRadius: 5,
-    },
-    teamItem: {
-        padding: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
-    },
-    teamName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    teamInfo: {
-        fontSize: 14,
-        color: '#666',
-    },
-    selectedTeam: {
-        marginBottom: 10,
-        backgroundColor: '#e8f5e9',
-        padding: 10,
-        borderRadius: 5,
-    },
-    selectedTeamText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 5,
-    },
-    dateInput: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        padding: 10,
-        marginVertical: 10,
     },
     challengeList: {
         maxHeight: 300,
@@ -349,36 +314,154 @@ const styles = StyleSheet.create({
         padding: 15,
         borderRadius: 8,
         marginBottom: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.2,
         shadowRadius: 2,
         elevation: 2,
     },
+    challengeInfo: {
+        flex: 1,
+    },
     challengeText: {
         fontSize: 16,
-        marginBottom: 5,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    challengeDate: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 5,
     },
     challengeActions: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 10,
+    },
+    button: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 10,
+        borderRadius: 5,
+        marginLeft: 10,
+    },
+    buttonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        marginLeft: 5,
     },
     acceptButton: {
         backgroundColor: '#4CAF50',
-        flex: 1,
-        marginRight: 5,
     },
     declineButton: {
         backgroundColor: '#F44336',
-        flex: 1,
-        marginLeft: 5,
     },
-    noChallengesText: {
-        textAlign: 'center',
+    createChallengeButton: {
+        backgroundColor: '#2196F3',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 15,
+        borderRadius: 10,
+        marginHorizontal: 20,
+        marginBottom: 20,
+    },
+    createChallengeButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 18,
+        marginLeft: 10,
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 10,
         padding: 20,
-        fontStyle: 'italic',
+        width: '90%',
+        maxHeight: '80%',
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+        color: '#333',
+    },
+    searchInput: {
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 5,
+        padding: 10,
+        marginBottom: 10,
+    },
+    searchButton: {
+        backgroundColor: '#2196F3',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 10,
+        borderRadius: 5,
+        marginBottom: 10,
+    },
+    searchResults: {
+        maxHeight: 150,
+        marginBottom: 10,
+    },
+    teamItem: {
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+    },
+    teamName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    teamInfo: {
+        fontSize: 14,
         color: '#666',
+    },
+    selectedTeam: {
+        marginTop: 10,
+        backgroundColor: '#e8f5e9',
+        padding: 10,
+        borderRadius: 5,
+    },
+    selectedTeamText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 10,
+    },
+    dateInput: {
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 5,
+        padding: 10,
+        marginBottom: 10,
+    },
+    createButton: {
+        backgroundColor: '#4CAF50',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        borderRadius: 5,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: '#F44336',
+        borderRadius: 20,
+        padding: 5,
     },
 });
 
