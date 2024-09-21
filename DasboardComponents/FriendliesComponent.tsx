@@ -97,18 +97,37 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         }
     };
 
-    const renderFriendlyMatch = ({ item }: { item: FriendlyChallenge }) => (
-        <View style={styles.matchItem}>
-            <Text>{item.challenger} vs {item.challenged}</Text>
-            <Text>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
-            <Text>Status: {item.status}</Text>
+    const renderFriendlyMatchesTable = () => (
+        <View style={styles.tableContainer}>
+            <View style={styles.tableHeader}>
+                <Text style={styles.tableHeaderCell}>Home Team</Text>
+                <Text style={styles.tableHeaderCell}>Away Team</Text>
+                <Text style={styles.tableHeaderCell}>Date</Text>
+                <Text style={styles.tableHeaderCell}>Status</Text>
+            </View>
+            {friendlyMatches.length === 0 ? (
+                <Text style={styles.noMatchesText}>No matches scheduled</Text>
+            ) : (
+                <FlatList
+                    data={friendlyMatches}
+                    renderItem={({ item }) => (
+                        <View style={styles.tableRow}>
+                            <Text style={styles.tableCell}>{item.challenger}</Text>
+                            <Text style={styles.tableCell}>{item.challenged}</Text>
+                            <Text style={styles.tableCell}>{new Date(item.proposed_date).toLocaleDateString()}</Text>
+                            <Text style={styles.tableCell}>{item.status}</Text>
+                        </View>
+                    )}
+                    keyExtractor={(item) => item.id.toString()}
+                />
+            )}
         </View>
     );
 
     const renderFriendlyChallenge = ({ item }: { item: FriendlyChallenge }) => (
         <View style={styles.challengeItem}>
-            <Text>{item.challenger} vs {item.challenged}</Text>
-            <Text>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
+            <Text style={styles.challengeText}>{item.challenger} vs {item.challenged}</Text>
+            <Text style={styles.challengeText}>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
             <View style={styles.challengeActions}>
                 <TouchableOpacity
                     style={[styles.button, styles.acceptButton]}
@@ -127,18 +146,15 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     );
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Friendlies</Text>
+        <ScrollView style={styles.container}>
+            <Text style={styles.mainTitle}>Friendly Matches Hub</Text>
 
-            <View style={styles.matchesContainer}>
+            <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Friendly Matches</Text>
-                <FlatList
-                    data={friendlyMatches}
-                    renderItem={renderFriendlyMatch}
-                    keyExtractor={(item) => item.id.toString()}
-                    style={styles.matchList}
-                />
+                {renderFriendlyMatchesTable()}
             </View>
+
+            <View style={styles.divider} />
 
             <View style={styles.challengeSection}>
                 <View style={styles.createChallengeContainer}>
@@ -160,15 +176,15 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                                     style={styles.teamItem}
                                     onPress={() => setSelectedTeam(team)}
                                 >
-                                    <Text>{team.name}</Text>
-                                    <Text>{team.country} - {team.division}</Text>
+                                    <Text style={styles.teamName}>{team.name}</Text>
+                                    <Text style={styles.teamInfo}>{team.country} - {team.division}</Text>
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
                     )}
                     {selectedTeam && (
                         <View style={styles.selectedTeam}>
-                            <Text>Selected Team: {selectedTeam.name}</Text>
+                            <Text style={styles.selectedTeamText}>Selected Team: {selectedTeam.name}</Text>
                             <TextInput
                                 style={styles.dateInput}
                                 placeholder="Proposed Date (YYYY-MM-DD)"
@@ -182,17 +198,23 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                     )}
                 </View>
 
+                <View style={styles.divider} />
+
                 <View style={styles.challengesContainer}>
                     <Text style={styles.sectionTitle}>Friendly Challenges</Text>
-                    <FlatList
-                        data={friendlyChallenges}
-                        renderItem={renderFriendlyChallenge}
-                        keyExtractor={(item) => item.id.toString()}
-                        style={styles.challengeList}
-                    />
+                    {friendlyChallenges.length === 0 ? (
+                        <Text style={styles.noChallengesText}>No pending challenges</Text>
+                    ) : (
+                        <FlatList
+                            data={friendlyChallenges}
+                            renderItem={renderFriendlyChallenge}
+                            keyExtractor={(item) => item.id.toString()}
+                            style={styles.challengeList}
+                        />
+                    )}
                 </View>
             </View>
-        </View>
+        </ScrollView>
     );
 };
 
@@ -202,39 +224,66 @@ const styles = StyleSheet.create({
         padding: 20,
         backgroundColor: '#F5F5F5',
     },
-    title: {
-        fontSize: 24,
+    mainTitle: {
+        fontSize: 28,
         fontWeight: 'bold',
         marginBottom: 20,
         textAlign: 'center',
+        color: '#333',
     },
-    matchesContainer: {
+    section: {
         marginBottom: 20,
     },
     sectionTitle: {
-        fontSize: 18,
+        fontSize: 22,
         fontWeight: 'bold',
-        marginBottom: 10,
+        marginBottom: 15,
+        color: '#444',
     },
-    matchList: {
-        maxHeight: 200,
-    },
-    matchItem: {
+    tableContainer: {
         backgroundColor: 'white',
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    tableHeader: {
+        flexDirection: 'row',
+        backgroundColor: '#f0f0f0',
         padding: 10,
-        borderRadius: 5,
-        marginBottom: 10,
+    },
+    tableHeaderCell: {
+        flex: 1,
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+        padding: 10,
+    },
+    tableCell: {
+        flex: 1,
+        textAlign: 'center',
+    },
+    noMatchesText: {
+        textAlign: 'center',
+        padding: 20,
+        fontStyle: 'italic',
+        color: '#666',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#ccc',
+        marginVertical: 20,
     },
     challengeSection: {
-        flexDirection: 'row',
+        flexDirection: 'column',
     },
     createChallengeContainer: {
-        flex: 1,
-        marginRight: 10,
+        marginBottom: 20,
     },
     challengesContainer: {
-        flex: 1,
-        marginLeft: 10,
+        marginTop: 20,
     },
     searchInput: {
         borderWidth: 1,
@@ -245,7 +294,7 @@ const styles = StyleSheet.create({
     },
     button: {
         backgroundColor: '#4CAF50',
-        padding: 10,
+        padding: 12,
         borderRadius: 5,
         alignItems: 'center',
         marginBottom: 10,
@@ -253,18 +302,37 @@ const styles = StyleSheet.create({
     buttonText: {
         color: 'white',
         fontWeight: 'bold',
+        fontSize: 16,
     },
     searchResults: {
         maxHeight: 150,
         marginBottom: 10,
+        backgroundColor: 'white',
+        borderRadius: 5,
     },
     teamItem: {
         padding: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
+        borderBottomColor: '#e0e0e0',
+    },
+    teamName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    teamInfo: {
+        fontSize: 14,
+        color: '#666',
     },
     selectedTeam: {
         marginBottom: 10,
+        backgroundColor: '#e8f5e9',
+        padding: 10,
+        borderRadius: 5,
+    },
+    selectedTeamText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 5,
     },
     dateInput: {
         borderWidth: 1,
@@ -274,13 +342,22 @@ const styles = StyleSheet.create({
         marginVertical: 10,
     },
     challengeList: {
-        maxHeight: 200,
+        maxHeight: 300,
     },
     challengeItem: {
         backgroundColor: 'white',
-        padding: 10,
-        borderRadius: 5,
+        padding: 15,
+        borderRadius: 8,
         marginBottom: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    challengeText: {
+        fontSize: 16,
+        marginBottom: 5,
     },
     challengeActions: {
         flexDirection: 'row',
@@ -296,6 +373,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#F44336',
         flex: 1,
         marginLeft: 5,
+    },
+    noChallengesText: {
+        textAlign: 'center',
+        padding: 20,
+        fontStyle: 'italic',
+        color: '#666',
     },
 });
 
