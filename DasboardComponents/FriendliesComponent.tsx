@@ -9,6 +9,7 @@ import {
     FlatList,
     Modal,
     SafeAreaView,
+    Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import axiosInstance from '../axiosConfig';
@@ -138,20 +139,20 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                 <Text style={styles.challengeDate}>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
                 <Text style={styles.challengeStatus}>Status: {item.status}</Text>
             </View>
-            {item.challenger && ( // Only show action buttons for received challenges
+            {item.challenger && (
                 <View style={styles.challengeActions}>
                     <TouchableOpacity
                         style={[styles.button, styles.acceptButton]}
                         onPress={() => respondToChallenge(item.id, 'accept')}
                     >
-                        <Icon name="checkmark-circle" size={24} color="white" />
+                        <Icon name="checkmark-circle" size={20} color="white" />
                         <Text style={styles.buttonText}>Accept</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.button, styles.declineButton]}
                         onPress={() => respondToChallenge(item.id, 'decline')}
                     >
-                        <Icon name="close-circle" size={24} color="white" />
+                        <Icon name="close-circle" size={20} color="white" />
                         <Text style={styles.buttonText}>Decline</Text>
                     </TouchableOpacity>
                 </View>
@@ -179,6 +180,9 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                             renderItem={renderFriendlyChallenge}
                             keyExtractor={(item) => item.id.toString()}
                             style={styles.challengeList}
+                            ItemSeparatorComponent={() => <View style={styles.separator} />}
+                            scrollEnabled={true}
+                            nestedScrollEnabled={true}
                         />
                     )}
                 </View>
@@ -191,6 +195,9 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                             renderItem={renderFriendlyChallenge}
                             keyExtractor={(item) => item.id.toString()}
                             style={styles.challengeList}
+                            ItemSeparatorComponent={() => <View style={styles.separator} />}
+                            scrollEnabled={true}
+                            nestedScrollEnabled={true}
                         />
                     </View>
                 )}
@@ -276,17 +283,13 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         backgroundColor: 'white',
         borderRadius: 10,
-        padding: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        overflow: 'hidden',
     },
     sectionTitle: {
         fontSize: 22,
         fontWeight: 'bold',
-        marginBottom: 15,
+        padding: 15,
+        backgroundColor: '#f0f0f0',
         color: '#444',
     },
     tableContainer: {
@@ -317,28 +320,16 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#444',
     },
-    noDataText: {
-        textAlign: 'center',
-        padding: 20,
-        fontStyle: 'italic',
-        color: '#666',
-    },
     challengeList: {
-        maxHeight: 300,
+        maxHeight: 200, // Set a fixed height for the challenge list
+        borderTopWidth: 1,
+        borderTopColor: '#e0e0e0',
     },
     challengeItem: {
-        backgroundColor: 'white',
         padding: 15,
-        borderRadius: 8,
-        marginBottom: 10,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        elevation: 2,
     },
     challengeInfo: {
         flex: 1,
@@ -365,13 +356,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 10,
+        padding: 8,
         borderRadius: 5,
         marginLeft: 10,
     },
     buttonText: {
         color: 'white',
         fontWeight: 'bold',
+        fontSize: 12,
         marginLeft: 5,
     },
     acceptButton: {
@@ -379,6 +371,17 @@ const styles = StyleSheet.create({
     },
     declineButton: {
         backgroundColor: '#F44336',
+    },
+    separator: {
+        height: 1,
+        backgroundColor: '#e0e0e0',
+        marginLeft: 15,
+    },
+    noDataText: {
+        textAlign: 'center',
+        padding: 20,
+        fontStyle: 'italic',
+        color: '#666',
     },
     createChallengeButton: {
         backgroundColor: '#2196F3',
