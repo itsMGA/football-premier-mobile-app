@@ -28,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState<string | null>(null);
     const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [showFriendliesModal, setShowFriendliesModal] = useState(false);
+    const [displayContent, setDisplayContent] = useState<'welcome' | 'friendlies'>('welcome');
     const slideAnim = useRef(new Animated.Value(-50)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -65,6 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             ]).start();
         }
     }, [activeTab]);
+
     const fetchNotifications = async () => {
         try {
             const response = await axiosInstance.get('/league/team-notifications/');
@@ -107,12 +108,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                                 index === 0 && styles.subMenuItemFirst,
                                 index === subMenuItems[activeTab].length - 1 && styles.subMenuItemLast,
                             ]}
-                            onPress={() => {
-                                setActiveSubMenu(item);
-                                if (item === 'Friendlies') {
-                                    setShowFriendliesModal(true);
-                                }
-                            }}
+                            onPress={() => handleSubMenuPress(item)}
                         >
                             <Text style={styles.subMenuText}>{item}</Text>
                             {item === 'Friendlies' && notifications.filter(n => n.type === 'friendly_challenge').length > 0 && (
@@ -129,28 +125,52 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         );
     };
 
+    const handleSubMenuPress = (item: string) => {
+        setActiveSubMenu(item);
+        if (item === 'Friendlies') {
+            setDisplayContent('friendlies');
+        } else {
+            setDisplayContent('welcome');
+        }
+    };
+
     const navItems = ['Club', 'Team', 'Transfers', 'Matches', 'Stadium'];
+
+    const renderContent = () => {
+        switch (displayContent) {
+            case 'friendlies':
+                return (
+                    <FriendliesComponent
+                        onClose={() => setDisplayContent('welcome')}
+                        onNotificationUpdate={fetchNotifications}
+                    />
+                );
+            case 'welcome':
+            default:
+                return (
+                    <View style={styles.content}>
+                        <Text style={styles.title}>Welcome to Your Dashboard</Text>
+                        <Text style={styles.activeTabText}>Active Tab: {activeTab || 'None'}</Text>
+                        <Text style={styles.activeTabText}>Active Sub-Menu: {activeSubMenu || 'None'}</Text>
+                    </View>
+                );
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.content}>
-                <Text style={styles.title}>Welcome to Your Dashboard</Text>
-                <Text style={styles.activeTabText}>Active Tab: {activeTab || 'None'}</Text>
-                <Text style={styles.activeTabText}>Active Sub-Menu: {activeSubMenu || 'None'}</Text>
-            </View>
+            {renderContent()}
             {renderSubMenu()}
-            <FriendliesComponent
-                visible={showFriendliesModal}
-                onClose={() => setShowFriendliesModal(false)}
-                onNotificationUpdate={fetchNotifications}
-            />
             <View style={styles.navbar}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {navItems.map((item) => (
                         <TouchableOpacity
                             key={item}
                             style={styles.navItem}
-                            onPress={() => setActiveTab(activeTab === item ? null : item)}
+                            onPress={() => {
+                                setActiveTab(item);
+                                setDisplayContent('welcome');
+                            }}
                         >
                             <Icon
                                 name={getIconName(item)}
