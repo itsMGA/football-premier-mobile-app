@@ -19,13 +19,9 @@ interface FriendliesComponentProps {
 
 interface FriendlyChallenge {
     id: number;
-    home_team: number;
-    away_team: number;
-    division: number | null;
-    date: string;
-    home_score: number | null;
-    away_score: number | null;
-    match_type: string;
+    challenger?: string;
+    challenged: string;
+    status: string;
 }
 
 interface Team {
@@ -42,9 +38,16 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<Team[]>([]);
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-    const [proposedDate, setProposedDate] = useState('');
-    const [proposedTime, setProposedTime] = useState('');
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    const openModal = () => {
+        setIsModalVisible(true);
+        setErrorMessage(null);
+        setSelectedTeam(null);
+        setSearchQuery('');
+        setSearchResults([]);
+    };
 
     useEffect(() => {
         fetchFriendlyMatches();
@@ -86,21 +89,24 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     };
 
     const createFriendlyChallenge = async () => {
-        if (!selectedTeam || !proposedDate || !proposedTime) return;
+        if (!selectedTeam) return;
 
         try {
             await axiosInstance.post('matches/friendly-challenges/create/', {
                 challenged_team_id: selectedTeam.id,
-                proposed_date: `${proposedDate} ${proposedTime}`,
             });
             fetchFriendlyChallenges();
             onNotificationUpdate();
             setSelectedTeam(null);
-            setProposedDate('');
-            setProposedTime('');
             setIsModalVisible(false);
+            setErrorMessage(null); // Clear any previous error messages
         } catch (error) {
             console.error('Error creating friendly challenge:', error);
+            if (error.response && error.response.data && error.response.data.error) {
+                setErrorMessage(error.response.data.error);
+            } else {
+                setErrorMessage('An error occurred while creating the challenge.');
+            }
         }
     };
 
@@ -146,9 +152,6 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         <View key={item.id} style={styles.challengeItem}>
             <View style={styles.challengeInfo}>
                 <Text style={styles.challengeText}>{item.challenger || 'Your Team'} vs {item.challenged}</Text>
-                <Text style={styles.challengeDate}>
-                    Date: {format(new Date(item.proposed_date), 'yyyy-MM-dd HH:mm')}
-                </Text>
                 <Text style={styles.challengeStatus}>Status: {item.status}</Text>
             </View>
             {item.challenger && (
@@ -176,7 +179,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         <>
             <Text style={styles.mainTitle}>Friendly Matches</Text>
 
-            <TouchableOpacity style={styles.createChallengeButton} onPress={() => setIsModalVisible(true)}>
+            <TouchableOpacity style={styles.createChallengeButton} onPress={openModal}>
                 <Icon name="add-circle" size={24} color="white" />
                 <Text style={styles.createChallengeButtonText}>Create Challenge</Text>
             </TouchableOpacity>
@@ -252,16 +255,23 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Challenge to Friendly</Text>
+
+                        {errorMessage && (
+                            <Text style={styles.errorMessage}>{errorMessage}</Text>
+                        )}
+
                         <TextInput
                             style={styles.searchInput}
                             placeholder="Search teams..."
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                         />
+
                         <TouchableOpacity style={styles.searchButton} onPress={searchTeams}>
                             <Icon name="search" size={24} color="white" />
                             <Text style={styles.buttonText}>Search</Text>
                         </TouchableOpacity>
+
                         {searchResults.length > 0 && (
                             <FlatList
                                 data={searchResults}
@@ -278,33 +288,33 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                                 style={styles.searchResults}
                             />
                         )}
+
                         {selectedTeam && (
                             <View style={styles.selectedTeam}>
                                 <Text style={styles.selectedTeamText}>Selected: {selectedTeam.name}</Text>
-                                <TextInput
-                                    style={styles.dateInput}
-                                    placeholder="Proposed Date (YYYY-MM-DD)"
-                                    value={proposedDate}
-                                    onChangeText={setProposedDate}
-                                />
-                                <TextInput
-                                    style={styles.dateInput}
-                                    placeholder="Proposed Time (HH:MM)"
-                                    value={proposedTime}
-                                    onChangeText={setProposedTime}
-                                />
                                 <TouchableOpacity style={styles.createButton} onPress={createFriendlyChallenge}>
                                     <Icon name="send" size={24} color="white" />
                                     <Text style={styles.buttonText}>Send Challenge</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
-                        <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
+
+                        <TouchableOpacity
+                            style={styles.closeButton}
+                            onPress={() => {
+                                setIsModalVisible(false);
+                                setErrorMessage(null);
+                                setSelectedTeam(null);
+                                setSearchQuery('');
+                                setSearchResults([]);
+                            }}
+                        >
                             <Icon name="close" size={24} color="white" />
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
+
         </SafeAreaView>
     );
 
@@ -314,6 +324,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F5F5F5',
+    },
+    errorMessage: {
+        color: 'red',
+        textAlign: 'center',
+        marginBottom: 10,
     },
     mainTitle: {
         fontSize: 28,
