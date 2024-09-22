@@ -47,9 +47,11 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
             });
 
             if (response.data && response.data.access) {
-                console.log('Access token received. Calling handleLoginSuccess...');
                 await handleLoginSuccess(response.data.access);
+                const hasTeam = await checkUserTeam();
+                onLoginSuccess(hasTeam);
                 return true;
+
             } else {
                 console.error('Login response does not contain access token:', response.data);
                 setMessage('Login failed. Please try again.');

@@ -105,7 +105,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
     const fetchCountries = async () => {
         try {
             setLoading(true);
-            const response = await axiosInstance.get('/league/countries/');
+            const response = await axiosInstance.get('league/countries/');
             setCountries(response.data);
             setLoading(false);
         } catch (error) {
@@ -204,7 +204,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
                 lastAssignTime.current = now;
                 console.log('Assigning team:', teams[selectedTeamIndex].id);
                 setLoading(true);
-                await axiosInstance.post('/accounts/user-progress/assign-team/', { team_id: teams[selectedTeamIndex].id });
+                await axiosInstance.post('accounts/user-progress/assign-team/', { team_id: teams[selectedTeamIndex].id });
                 setLoading(false);
                 console.log('Team assigned successfully');
                 onSelectTeam(teams[selectedTeamIndex].id.toString()); // Call this after successful assignment

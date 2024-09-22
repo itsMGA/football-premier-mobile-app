@@ -5,6 +5,11 @@ import * as encryptUtils from './encryptUtils';
 
 const baseURL = Config.BASE_URL || 'https://football.eliptum.tech/';
 const debugMode = true;
+const noAuthEndpoints = [
+    'accounts/create/',
+    'accounts/login/'
+    // Add any other endpoints that don't require authentication
+];
 
 const axiosInstance = axios.create({
     baseURL,
@@ -33,9 +38,13 @@ const logSeparator = (message: string) => {
 axiosInstance.interceptors.request.use(
     async (config) => {
         try {
-            const token = await getDecryptedToken();
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
+            const isNoAuthEndpoint = noAuthEndpoints.some(endpoint => config.url?.includes(endpoint));
+
+            if (!isNoAuthEndpoint) {
+                const token = await getDecryptedToken();
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
             } else {
                 delete config.headers.Authorization;
             }
@@ -45,13 +54,9 @@ axiosInstance.interceptors.request.use(
 
         if (debugMode) {
             logSeparator(`Request to ${config.baseURL}${config.url}`);
-            // console.log(`Method: ${config.method?.toUpperCase()}`);
-            // console.log(`URL: ${config.baseURL}${config.url}`);
             console.log('Headers:', JSON.stringify(config.headers, null, 2));
             console.log('Data:', JSON.stringify(config.data, null, 2));
-            // console.log('cURL Command:', toCurlCommand(config));
         }
-
         return config;
     },
     (error) => {

@@ -35,6 +35,20 @@ const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, swit
     const ballPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
     const ballOpacity = useRef(new Animated.Value(0)).current;
     const flashOpacity = useRef(new Animated.Value(0)).current;
+    const [hasTeam, setHasTeam] = useState<boolean>(false);
+
+    const checkManagerTeam = async () => {
+        try {
+            await axiosInstance.get('accounts/user-progress/check-team/');
+            return true;
+        } catch (error) {
+            if (error.response?.status === 404) {
+                return false;
+            }
+            console.error('Error checking manager team:', error);
+            return false;
+        }
+    };
 
     const createNewManager = async (
         managerName: string,
@@ -56,7 +70,7 @@ const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, swit
                 username: managerName,
                 email,
                 password,
-                confirm_password: confirmPassword,
+                confirm_password: confirmPassword
             });
 
             console.log('Create manager response:', response.data);
@@ -68,8 +82,17 @@ const ManagerCreation: React.FC<ManagerCreationProps> = ({ onCreateSuccess, swit
                 setIsSuccess(true);
                 animateBall();
                 animateFlash();
-                onCreateSuccess();
+
+                // Update the axiosInstance with the new token
+                axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
+
+                // Check if the manager has a team
+                const hasTeam = await checkManagerTeam();
+                onCreateSuccess(hasTeam);
                 return true;
+            } else {
+                setMessage('Failed to create manager account. Please try again.');
+                return false;
             }
         } catch (error) {
             console.error('API Error:', error);

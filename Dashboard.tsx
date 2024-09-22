@@ -68,7 +68,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
 
     const fetchNotifications = async () => {
         try {
-            const response = await axiosInstance.get('/league/team-notifications/');
+            const response = await axiosInstance.get('league/team-notifications/');
             setNotifications(response.data);
         } catch (error) {
             console.error('Error fetching notifications:', error);

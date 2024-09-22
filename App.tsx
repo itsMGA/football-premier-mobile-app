@@ -41,7 +41,7 @@ function App(): React.JSX.Element {
 
   const checkUserTeam = async () => {
     try {
-      const response = await axiosInstance.get('/accounts/user-progress/check-team/');
+      const response = await axiosInstance.get('accounts/user-progress/check-team/');
       setHasTeam(true);
     } catch (error) {
       if (error.response?.status === 404 && error.response?.data?.detail === "User does not have a team") {
@@ -59,16 +59,20 @@ function App(): React.JSX.Element {
     setHasTeam(false);
   };
 
-  const handleLoginSuccess = async () => {
+  const handleAuthSuccess = async (hasTeam: boolean) => {
     setIsLoggedIn(true);
-    await checkUserTeam();
+    setHasTeam(hasTeam);
+    if (!hasTeam) {
+      // If the user doesn't have a team, we'll show the team selection screen
+      // This is handled in renderContent()
+    }
   };
 
   const handleTeamSelection = useCallback(async (teamId: string) => {
     try {
       console.log('Assigning team in App.tsx:', teamId);
       setHasTeam(true);
-      // Remove the API call from here, as it's already done in SelectClubPanel
+      // The API call is done in SelectClubPanel, so we just update the state here
     } catch (error) {
       console.error('Error handling team selection:', error);
       setHasTeam(false);
@@ -89,7 +93,7 @@ function App(): React.JSX.Element {
       );
     }
     if (!isLoggedIn) {
-      return <AuthScreen onAuthSuccess={handleLoginSuccess} />;
+      return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
     }
     if (!hasTeam) {
       return <SelectClubPanel onSelectTeam={handleTeamSelection} onClose={handleCloseTeamSelection} />;
