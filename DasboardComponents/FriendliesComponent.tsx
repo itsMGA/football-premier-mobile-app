@@ -12,9 +12,11 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import axiosInstance from '../axiosConfig';
 import { format, parseISO, isValid } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 
 interface FriendliesComponentProps {
     onNotificationUpdate: () => void;
+    userTeamId: number; // Add this prop to know the user's team
 }
 
 interface FriendlyChallenge {
@@ -31,8 +33,20 @@ interface Team {
     country: string;
 }
 
-const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificationUpdate }) => {
-    const [friendlyMatches, setFriendlyMatches] = useState<FriendlyChallenge[]>([]);
+interface MatchData {
+    id: number;
+    home_team: string | number;
+    away_team: string | number;
+    home_team_id: number;
+    away_team_id: number;
+    home_start_time?: string;
+    away_start_time?: string;
+    date?: string;
+    match_type: string;
+}
+
+const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificationUpdate, userTeamId }) => {
+    const [friendlyMatches, setFriendlyMatches] = useState<MatchData[]>([]);
     const [receivedChallenges, setReceivedChallenges] = useState<FriendlyChallenge[]>([]);
     const [sentChallenges, setSentChallenges] = useState<FriendlyChallenge[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -58,7 +72,10 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         try {
             const response = await axiosInstance.get('matches/get/?type=FRIENDLY');
             if (response.data && Array.isArray(response.data)) {
-                setFriendlyMatches(response.data);
+                const validMatches = response.data.filter(match =>
+                    match && typeof match === 'object' && 'id' in match
+                );
+                setFriendlyMatches(validMatches);
             } else {
                 console.error('Unexpected response format:', response.data);
                 setFriendlyMatches([]);
@@ -121,25 +138,66 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         }
     };
 
+    const [userTeam, setUserTeam] = useState(null);
+
+    const fetchUserTeam = async () => {
+        try {
+            const response = await axiosInstance.get('accounts/user-team/');
+            setUserTeam(response.data);
+        } catch (error) {
+            console.error('Error fetching user team:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchUserTeam();
+        fetchFriendlyMatches();
+        fetchFriendlyChallenges();
+    }, []);
     const renderFriendlyMatchesTable = () => (
         <View style={styles.tableContainer}>
             <View style={styles.tableHeader}>
                 <Text style={styles.tableHeaderCell}>Home Team</Text>
                 <Text style={styles.tableHeaderCell}>Away Team</Text>
-                <Text style={styles.tableHeaderCell}>Date</Text>
+                <Text style={styles.tableHeaderCell}>Kickoff</Text>
                 <Text style={styles.tableHeaderCell}>Status</Text>
             </View>
             {friendlyMatches.length === 0 ? (
                 <Text style={styles.noDataText}>No matches scheduled</Text>
             ) : (
                 friendlyMatches.map((item) => {
-                    const date = parseISO(item.date);
-                    const formattedDate = isValid(date) ? format(date, 'yyyy-MM-dd HH:mm') : 'Invalid Date';
+                    const isUserHomeTeam = userTeam && item.home_team === userTeam.id;
+                    const isUserAwayTeam = userTeam && item.away_team === userTeam.id;
+                    let kickoffTime, kickoffTimeZone;
+
+                    if (isUserHomeTeam) {
+                        kickoffTime = item.home_team_start_time;
+                        kickoffTimeZone = item.home_team_timezone;
+                    } else if (isUserAwayTeam) {
+                        kickoffTime = item.away_team_start_time;
+                        kickoffTimeZone = item.away_team_timezone;
+                    } else {
+                        // If user's team is not playing, show UTC time
+                        kickoffTime = item.date;
+                        kickoffTimeZone = 'UTC';
+                    }
+
+                    let formattedKickoff = 'TBD';
+                    if (kickoffTime) {
+                        const kickoff = parseISO(kickoffTime);
+                        if (isValid(kickoff)) {
+                            const zonedTime = toZonedTime(kickoff, kickoffTimeZone);
+                            formattedKickoff = `${format(zonedTime, 'yyyy-MM-dd HH:mm')} (${kickoffTimeZone})`;
+                        } else {
+                            formattedKickoff = 'Invalid Date';
+                        }
+                    }
+
                     return (
                         <View key={item.id} style={styles.tableRow}>
                             <Text style={styles.tableCell}>{item.home_team}</Text>
                             <Text style={styles.tableCell}>{item.away_team}</Text>
-                            <Text style={styles.tableCell}>{formattedDate}</Text>
+                            <Text style={styles.tableCell}>{formattedKickoff}</Text>
                             <Text style={styles.tableCell}>{item.match_type}</Text>
                         </View>
                     );
