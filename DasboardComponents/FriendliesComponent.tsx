@@ -16,7 +16,7 @@ import { toZonedTime } from 'date-fns-tz';
 
 interface FriendliesComponentProps {
     onNotificationUpdate: () => void;
-    userTeamId: number; // Add this prop to know the user's team
+    userTeamId: number;
 }
 
 interface FriendlyChallenge {
@@ -55,7 +55,9 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [teams, setTeams] = useState<{ [key: number]: string }>({});
+    const [userTeam, setUserTeam] = useState(null);
 
+    const pendingSentChallenges = sentChallenges.filter(challenge => challenge.status === "PENDING");
 
     const openModal = () => {
         setIsModalVisible(true);
@@ -66,7 +68,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     };
 
     const fetchTeamData = async (teamId: number) => {
-        if (teams[teamId]) return; // If we already have the team data, don't fetch it again
+        if (teams[teamId]) return;
         try {
             const response = await axiosInstance.get(`league/teams/${teamId}/`);
             setTeams(prevTeams => ({ ...prevTeams, [teamId]: response.data.name }));
@@ -81,10 +83,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         fetchUserTeam();
     }, []);
 
-
-
     useEffect(() => {
-        // Fetch team data for all teams in friendlyMatches
         friendlyMatches.forEach(match => {
             fetchTeamData(match.home_team);
             fetchTeamData(match.away_team);
@@ -139,7 +138,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
             onNotificationUpdate();
             setSelectedTeam(null);
             setIsModalVisible(false);
-            setErrorMessage(null); // Clear any previous error messages
+            setErrorMessage(null);
         } catch (error) {
             console.error('Error creating friendly challenge:', error);
             if (error.response && error.response.data && error.response.data.error) {
@@ -161,8 +160,6 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         }
     };
 
-    const [userTeam, setUserTeam] = useState(null);
-
     const fetchUserTeam = async () => {
         try {
             const response = await axiosInstance.get('accounts/user-team/');
@@ -171,12 +168,6 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
             console.error('Error fetching user team:', error);
         }
     };
-
-    useEffect(() => {
-        fetchUserTeam();
-        fetchFriendlyMatches();
-        fetchFriendlyChallenges();
-    }, []);
 
     const renderFriendlyMatchesTable = () => (
         <View style={styles.tableContainer}>
@@ -229,14 +220,13 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         </View>
     );
 
-
-    const renderFriendlyChallenge = (item: FriendlyChallenge) => (
+    const renderFriendlyChallenge = (item: FriendlyChallenge, isReceived: boolean) => (
         <View key={item.id} style={styles.challengeItem}>
             <View style={styles.challengeInfo}>
                 <Text style={styles.challengeText}>{item.challenger || 'Your Team'} vs {item.challenged}</Text>
-                <Text style={styles.challengeStatus}>Type: {item.status}</Text>
+                <Text style={styles.challengeStatus}>Status: {item.status}</Text>
             </View>
-            {item.challenger && (
+            {isReceived && item.status === "PENDING" && (
                 <View style={styles.challengeActions}>
                     <TouchableOpacity
                         style={[styles.button, styles.acceptButton]}
@@ -257,48 +247,16 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         </View>
     );
 
-    const renderHeader = () => (
-        <>
-            <Text style={styles.mainTitle}>Friendly Matches</Text>
-
-            <TouchableOpacity style={styles.createChallengeButton} onPress={openModal}>
-                <Icon name="add-circle" size={24} color="white" />
-                <Text style={styles.createChallengeButtonText}>Create Challenge</Text>
-            </TouchableOpacity>
-
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Scheduled Matches</Text>
-                {renderFriendlyMatchesTable()}
-            </View>
-
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Received Challenges</Text>
-                {receivedChallenges.length === 0 ? (
-                    <Text style={styles.noDataText}>No pending challenges</Text>
-                ) : (
-                    receivedChallenges.map(challenge => renderFriendlyChallenge(challenge))
-                )}
-            </View>
-
-            {sentChallenges.length > 0 && (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Sent Challenges</Text>
-                    {sentChallenges.map(challenge => renderFriendlyChallenge(challenge))}
-                </View>
-            )}
-        </>
-    );
-
     return (
         <SafeAreaView style={styles.container}>
             <FlatList
-                data={[{ key: 'dummy' }]} // We need at least one item for the list to render
+                data={[{ key: 'dummy' }]}
                 renderItem={() => null}
                 ListHeaderComponent={() => (
                     <>
                         <Text style={styles.mainTitle}>Friendly Matches</Text>
 
-                        <TouchableOpacity style={styles.createChallengeButton} onPress={() => setIsModalVisible(true)}>
+                        <TouchableOpacity style={styles.createChallengeButton} onPress={openModal}>
                             <Icon name="add-circle" size={24} color="white" />
                             <Text style={styles.createChallengeButtonText}>Create Challenge</Text>
                         </TouchableOpacity>
@@ -313,19 +271,26 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                             {receivedChallenges.length === 0 ? (
                                 <Text style={styles.noDataText}>No pending challenges</Text>
                             ) : (
-                                receivedChallenges.map(challenge => renderFriendlyChallenge(challenge))
+                                receivedChallenges.map(challenge => renderFriendlyChallenge(challenge, true))
                             )}
                         </View>
 
-                        {sentChallenges.length > 0 && (
+                        {pendingSentChallenges.length > 0 && (
                             <View style={styles.section}>
                                 <Text style={styles.sectionTitle}>Sent Challenges</Text>
-                                {sentChallenges.map(challenge => renderFriendlyChallenge(challenge))}
+                                {pendingSentChallenges.map(challenge => (
+                                    <View key={challenge.id} style={styles.challengeItem}>
+                                        <View style={styles.challengeInfo}>
+                                            <Text style={styles.challengeText}>{challenge.challenger} vs {challenge.challenged}</Text>
+                                            <Text style={styles.challengeStatus}>Status: {challenge.status}</Text>
+                                        </View>
+                                    </View>
+                                ))}
                             </View>
                         )}
                     </>
                 )}
-                contentContainerStyle={{ paddingBottom: 80 }} // Add padding to the bottom of the FlatList
+                contentContainerStyle={{ paddingBottom: 80 }}
             />
 
             <Modal
@@ -396,11 +361,10 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                     </View>
                 </View>
             </Modal>
-
         </SafeAreaView>
     );
-
 };
+
 
 const styles = StyleSheet.create({
     container: {
