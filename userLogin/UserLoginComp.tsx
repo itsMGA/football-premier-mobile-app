@@ -1,4 +1,3 @@
-// UserLoginComp.tsx
 
 import React, { useState, useRef } from 'react';
 import {
@@ -12,7 +11,6 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import axiosInstance, { storeEncryptedToken, getDecryptedToken } from '../axiosConfig';
-import jwtDecode from 'jwt-decode';
 import { AnimatedInput, ErrorMessage } from './SharedComponents';
 
 interface FieldError {
@@ -20,7 +18,7 @@ interface FieldError {
 }
 
 interface UserLoginCompProps {
-    onLoginSuccess: () => void;
+    onLoginSuccess: (hasTeam: boolean) => void;
     switchToRegister: () => void;
 }
 
@@ -34,6 +32,19 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
     const ballPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
     const ballOpacity = useRef(new Animated.Value(0)).current;
     const flashOpacity = useRef(new Animated.Value(0)).current;
+
+    const checkUserTeam = async () => {
+        try {
+            await axiosInstance.get('accounts/user-progress/check-team/');
+            return true;
+        } catch (error) {
+            if (error.response?.status === 404 && error.response?.data?.detail === "User does not have a team") {
+                return false;
+            }
+            console.error('Error checking user team:', error);
+            return false;
+        }
+    };
 
     const loginManager = async (email: string, password: string): Promise<boolean> => {
         setFieldErrors({});
@@ -51,7 +62,6 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
                 const hasTeam = await checkUserTeam();
                 onLoginSuccess(hasTeam);
                 return true;
-
             } else {
                 console.error('Login response does not contain access token:', response.data);
                 setMessage('Login failed. Please try again.');
@@ -92,7 +102,6 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
             setIsSuccess(true);
             animateBall();
             animateFlash();
-            onLoginSuccess();
         } catch (error) {
             console.error('Error in handleLoginSuccess:', error);
             setMessage('Login failed. Please try again.');
@@ -206,6 +215,7 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
         </ImageBackground>
     );
 };
+
 
 const styles = StyleSheet.create({
     backgroundImage: {

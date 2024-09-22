@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import UserLoginComp from './UserLoginComp';
 import ManagerCreation from './managerCreation';
-import SelectClubPanel from './teamSelection'; // Import the SelectClubPanel
+import SelectClubPanel from './teamSelection';
+import axiosInstance from '../axiosConfig';
 
 interface AuthScreenProps {
     onAuthSuccess: (hasTeam: boolean) => void;
@@ -15,7 +16,21 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
     const switchToRegister = () => setIsLoginMode(false);
     const switchToLogin = () => setIsLoginMode(true);
 
-    const handleAuthSuccess = (hasTeam: boolean) => {
+    const checkUserTeam = async () => {
+        try {
+            await axiosInstance.get('accounts/user-progress/check-team/');
+            return true;
+        } catch (error) {
+            if (error.response?.status === 404 && error.response?.data?.detail === "User does not have a team") {
+                return false;
+            }
+            console.error('Error checking user team:', error);
+            return false;
+        }
+    };
+
+    const handleAuthSuccess = async () => {
+        const hasTeam = await checkUserTeam();
         if (hasTeam) {
             onAuthSuccess(true);
         } else {
@@ -23,9 +38,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         }
     };
 
-    const handleTeamSelection = (teamId: number) => {
-        setNeedsTeamSelection(false);
-        onAuthSuccess(true);
+    const handleTeamSelection = async (teamId: number) => {
+        try {
+            await axiosInstance.post('accounts/user-progress/assign-team/', { team_id: teamId });
+            setNeedsTeamSelection(false);
+            onAuthSuccess(true);
+        } catch (error) {
+            console.error('Error assigning team:', error);
+            // Handle error (e.g., show an error message to the user)
+        }
     };
 
     if (needsTeamSelection) {
