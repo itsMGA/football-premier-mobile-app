@@ -54,6 +54,8 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [teams, setTeams] = useState<{ [key: number]: string }>({});
+
 
     const openModal = () => {
         setIsModalVisible(true);
@@ -63,10 +65,31 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         setSearchResults([]);
     };
 
+    const fetchTeamData = async (teamId: number) => {
+        if (teams[teamId]) return; // If we already have the team data, don't fetch it again
+        try {
+            const response = await axiosInstance.get(`league/teams/${teamId}/`);
+            setTeams(prevTeams => ({ ...prevTeams, [teamId]: response.data.name }));
+        } catch (error) {
+            console.error('Error fetching team data:', error);
+        }
+    };
+
     useEffect(() => {
         fetchFriendlyMatches();
         fetchFriendlyChallenges();
+        fetchUserTeam();
     }, []);
+
+
+
+    useEffect(() => {
+        // Fetch team data for all teams in friendlyMatches
+        friendlyMatches.forEach(match => {
+            fetchTeamData(match.home_team);
+            fetchTeamData(match.away_team);
+        });
+    }, [friendlyMatches]);
 
     const fetchFriendlyMatches = async () => {
         try {
@@ -154,6 +177,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         fetchFriendlyMatches();
         fetchFriendlyChallenges();
     }, []);
+
     const renderFriendlyMatchesTable = () => (
         <View style={styles.tableContainer}>
             <View style={styles.tableHeader}>
@@ -177,7 +201,6 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                         kickoffTime = item.away_team_start_time;
                         kickoffTimeZone = item.away_team_timezone;
                     } else {
-                        // If user's team is not playing, show UTC time
                         kickoffTime = item.date;
                         kickoffTimeZone = 'UTC';
                     }
@@ -195,8 +218,8 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
 
                     return (
                         <View key={item.id} style={styles.tableRow}>
-                            <Text style={styles.tableCell}>{item.home_team}</Text>
-                            <Text style={styles.tableCell}>{item.away_team}</Text>
+                            <Text style={styles.tableCell}>{teams[item.home_team] || 'Loading...'}</Text>
+                            <Text style={styles.tableCell}>{teams[item.away_team] || 'Loading...'}</Text>
                             <Text style={styles.tableCell}>{formattedKickoff}</Text>
                             <Text style={styles.tableCell}>{item.match_type}</Text>
                         </View>
@@ -206,11 +229,12 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         </View>
     );
 
+
     const renderFriendlyChallenge = (item: FriendlyChallenge) => (
         <View key={item.id} style={styles.challengeItem}>
             <View style={styles.challengeInfo}>
                 <Text style={styles.challengeText}>{item.challenger || 'Your Team'} vs {item.challenged}</Text>
-                <Text style={styles.challengeStatus}>Status: {item.status}</Text>
+                <Text style={styles.challengeStatus}>Type: {item.status}</Text>
             </View>
             {item.challenger && (
                 <View style={styles.challengeActions}>
