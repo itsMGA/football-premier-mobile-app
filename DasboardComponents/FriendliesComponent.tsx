@@ -4,12 +4,10 @@ import {
     Text,
     TouchableOpacity,
     StyleSheet,
-    ScrollView,
     TextInput,
     FlatList,
     Modal,
     SafeAreaView,
-    Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import axiosInstance from '../axiosConfig';
@@ -116,24 +114,20 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
             {friendlyMatches.length === 0 ? (
                 <Text style={styles.noDataText}>No matches scheduled</Text>
             ) : (
-                <FlatList
-                    data={friendlyMatches}
-                    renderItem={({ item }) => (
-                        <View style={styles.tableRow}>
-                            <Text style={styles.tableCell}>{item.challenger}</Text>
-                            <Text style={styles.tableCell}>{item.challenged}</Text>
-                            <Text style={styles.tableCell}>{new Date(item.proposed_date).toLocaleDateString()}</Text>
-                            <Text style={styles.tableCell}>{item.status}</Text>
-                        </View>
-                    )}
-                    keyExtractor={(item) => item.id.toString()}
-                />
+                friendlyMatches.map((item) => (
+                    <View key={item.id} style={styles.tableRow}>
+                        <Text style={styles.tableCell}>{item.challenger}</Text>
+                        <Text style={styles.tableCell}>{item.challenged}</Text>
+                        <Text style={styles.tableCell}>{new Date(item.proposed_date).toLocaleDateString()}</Text>
+                        <Text style={styles.tableCell}>{item.status}</Text>
+                    </View>
+                ))
             )}
         </View>
     );
 
-    const renderFriendlyChallenge = ({ item }: { item: FriendlyChallenge }) => (
-        <View style={styles.challengeItem}>
+    const renderFriendlyChallenge = (item: FriendlyChallenge) => (
+        <View key={item.id} style={styles.challengeItem}>
             <View style={styles.challengeInfo}>
                 <Text style={styles.challengeText}>{item.challenger || 'Your Team'} vs {item.challenged}</Text>
                 <Text style={styles.challengeDate}>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
@@ -160,108 +154,103 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         </View>
     );
 
+    const renderHeader = () => (
+        <>
+            <Text style={styles.mainTitle}>Friendly Matches</Text>
+
+            <TouchableOpacity style={styles.createChallengeButton} onPress={() => setIsModalVisible(true)}>
+                <Icon name="add-circle" size={24} color="white" />
+                <Text style={styles.createChallengeButtonText}>Create Challenge</Text>
+            </TouchableOpacity>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Scheduled Matches</Text>
+                {renderFriendlyMatchesTable()}
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Received Challenges</Text>
+                {receivedChallenges.length === 0 ? (
+                    <Text style={styles.noDataText}>No pending challenges</Text>
+                ) : (
+                    receivedChallenges.map(challenge => renderFriendlyChallenge(challenge))
+                )}
+            </View>
+
+            {sentChallenges.length > 0 && (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Sent Challenges</Text>
+                    {sentChallenges.map(challenge => renderFriendlyChallenge(challenge))}
+                </View>
+            )}
+        </>
+    );
+
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView>
-                <Text style={styles.mainTitle}>Friendly Matches</Text>
+            <FlatList
+                data={[{ key: 'dummy' }]} // We need at least one item for the list to render
+                renderItem={() => null}
+                ListHeaderComponent={renderHeader}
+                contentContainerStyle={{ paddingBottom: 80 }} // Add padding to the bottom of the FlatList
+            />
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Scheduled Matches</Text>
-                    {renderFriendlyMatchesTable()}
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Received Challenges</Text>
-                    {receivedChallenges.length === 0 ? (
-                        <Text style={styles.noDataText}>No pending challenges</Text>
-                    ) : (
-                        <FlatList
-                            data={receivedChallenges}
-                            renderItem={renderFriendlyChallenge}
-                            keyExtractor={(item) => item.id.toString()}
-                            style={styles.challengeList}
-                            ItemSeparatorComponent={() => <View style={styles.separator} />}
-                            scrollEnabled={true}
-                            nestedScrollEnabled={true}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={isModalVisible}
+                onRequestClose={() => setIsModalVisible(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Challenge to Friendly</Text>
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search teams..."
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
                         />
-                    )}
-                </View>
-
-                {sentChallenges.length > 0 && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Sent Challenges</Text>
-                        <FlatList
-                            data={sentChallenges}
-                            renderItem={renderFriendlyChallenge}
-                            keyExtractor={(item) => item.id.toString()}
-                            style={styles.challengeList}
-                            ItemSeparatorComponent={() => <View style={styles.separator} />}
-                            scrollEnabled={true}
-                            nestedScrollEnabled={true}
-                        />
-                    </View>
-                )}
-
-                <TouchableOpacity style={styles.createChallengeButton} onPress={() => setIsModalVisible(true)}>
-                    <Icon name="add-circle" size={24} color="white" />
-                    <Text style={styles.createChallengeButtonText}>Create Challenge</Text>
-                </TouchableOpacity>
-
-                <Modal
-                    animationType="slide"
-                    transparent={true}
-                    visible={isModalVisible}
-                    onRequestClose={() => setIsModalVisible(false)}
-                >
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Challenge to Friendly</Text>
-                            <TextInput
-                                style={styles.searchInput}
-                                placeholder="Search teams..."
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                            />
-                            <TouchableOpacity style={styles.searchButton} onPress={searchTeams}>
-                                <Icon name="search" size={24} color="white" />
-                                <Text style={styles.buttonText}>Search</Text>
-                            </TouchableOpacity>
-                            {searchResults.length > 0 && (
-                                <ScrollView style={styles.searchResults}>
-                                    {searchResults.map((team) => (
-                                        <TouchableOpacity
-                                            key={team.id}
-                                            style={styles.teamItem}
-                                            onPress={() => setSelectedTeam(team)}
-                                        >
-                                            <Text style={styles.teamName}>{team.name}</Text>
-                                            <Text style={styles.teamInfo}>{team.country} - {team.division}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            )}
-                            {selectedTeam && (
-                                <View style={styles.selectedTeam}>
-                                    <Text style={styles.selectedTeamText}>Selected: {selectedTeam.name}</Text>
-                                    <TextInput
-                                        style={styles.dateInput}
-                                        placeholder="Proposed Date (YYYY-MM-DD)"
-                                        value={proposedDate}
-                                        onChangeText={setProposedDate}
-                                    />
-                                    <TouchableOpacity style={styles.createButton} onPress={createFriendlyChallenge}>
-                                        <Icon name="send" size={24} color="white" />
-                                        <Text style={styles.buttonText}>Send Challenge</Text>
+                        <TouchableOpacity style={styles.searchButton} onPress={searchTeams}>
+                            <Icon name="search" size={24} color="white" />
+                            <Text style={styles.buttonText}>Search</Text>
+                        </TouchableOpacity>
+                        {searchResults.length > 0 && (
+                            <FlatList
+                                data={searchResults}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={styles.teamItem}
+                                        onPress={() => setSelectedTeam(item)}
+                                    >
+                                        <Text style={styles.teamName}>{item.name}</Text>
+                                        <Text style={styles.teamInfo}>{item.country} - {item.division}</Text>
                                     </TouchableOpacity>
-                                </View>
-                            )}
-                            <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
-                                <Icon name="close" size={24} color="white" />
-                            </TouchableOpacity>
-                        </View>
+                                )}
+                                keyExtractor={(item) => item.id.toString()}
+                                style={styles.searchResults}
+                            />
+                        )}
+                        {selectedTeam && (
+                            <View style={styles.selectedTeam}>
+                                <Text style={styles.selectedTeamText}>Selected: {selectedTeam.name}</Text>
+                                <TextInput
+                                    style={styles.dateInput}
+                                    placeholder="Proposed Date (YYYY-MM-DD)"
+                                    value={proposedDate}
+                                    onChangeText={setProposedDate}
+                                />
+                                <TouchableOpacity style={styles.createButton} onPress={createFriendlyChallenge}>
+                                    <Icon name="send" size={24} color="white" />
+                                    <Text style={styles.buttonText}>Send Challenge</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
+                            <Icon name="close" size={24} color="white" />
+                        </TouchableOpacity>
                     </View>
-                </Modal>
-            </ScrollView>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -320,16 +309,13 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#444',
     },
-    challengeList: {
-        maxHeight: 200, // Set a fixed height for the challenge list
-        borderTopWidth: 1,
-        borderTopColor: '#e0e0e0',
-    },
     challengeItem: {
         padding: 15,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
     },
     challengeInfo: {
         flex: 1,
@@ -371,11 +357,6 @@ const styles = StyleSheet.create({
     },
     declineButton: {
         backgroundColor: '#F44336',
-    },
-    separator: {
-        height: 1,
-        backgroundColor: '#e0e0e0',
-        marginLeft: 15,
     },
     noDataText: {
         textAlign: 'center',
