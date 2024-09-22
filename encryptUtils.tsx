@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'react-native-quick-crypto';
 import { Buffer } from 'buffer';
 
-const ENCRYPTION_KEY = Config.encription_key || 'fallback_key_32chars_long_____';
+const ENCRYPTION_KEY = Config.encription_key || 'e3f4d7a8b12c47d0ab56789cdef0123456789abcdef0123456789abcdef012';
 
 // Ensure the key is 32 bytes long for AES-256
 const key = Buffer.from(ENCRYPTION_KEY.slice(0, 32));

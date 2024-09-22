@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import {
     StyleSheet,
@@ -8,6 +7,7 @@ import {
     Animated,
     Easing,
     ImageBackground,
+    ScrollView,
 } from 'react-native';
 import axios from 'axios';
 import axiosInstance, { storeEncryptedToken, getDecryptedToken } from '../axiosConfig';
@@ -28,6 +28,7 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
     const [message, setMessage] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<FieldError>({});
+    const [errorResponse, setErrorResponse] = useState<string | null>(null);
 
     const ballPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
     const ballOpacity = useRef(new Animated.Value(0)).current;
@@ -49,6 +50,7 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
     const loginManager = async (email: string, password: string): Promise<boolean> => {
         setFieldErrors({});
         setMessage('');
+        setErrorResponse(null);
 
         try {
             console.log('Attempting to login...');
@@ -72,9 +74,16 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
             setIsSuccess(false);
 
             if (axios.isAxiosError(error) && error.response) {
-                const responseData = error.response.data;
-                if (typeof responseData === 'object') {
-                    setFieldErrors(responseData);
+                const { status, data } = error.response;
+                const errorMessage = `
+------------------------------[Error Response from accounts/login/]------------------------------
+ ERROR  Status: ${status}
+ ERROR  Data: ${JSON.stringify(data, null, 2)}
+----------------------------------------------------------------------------------------------`;
+                setErrorResponse(errorMessage);
+
+                if (typeof data === 'object') {
+                    setFieldErrors(data);
                 } else {
                     setMessage('An error occurred while logging in. Please try again.');
                 }
@@ -166,61 +175,68 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
             source={require('../images/field.jpg')}
             style={styles.backgroundImage}
         >
-            <Animated.View style={[styles.flashOverlay, { opacity: flashOpacity }]} />
-            <View style={styles.container}>
-                <Text style={styles.title}>Login</Text>
-                <AnimatedInput
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="Email"
-                    keyboardType="email-address"
-                    error={!!fieldErrors['email']}
-                />
-                {fieldErrors['email'] && <ErrorMessage errors={fieldErrors['email']} />}
-                <AnimatedInput
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Password"
-                    secureTextEntry
-                    error={!!fieldErrors['password']}
-                />
-                {fieldErrors['password'] && <ErrorMessage errors={fieldErrors['password']} />}
-                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                    <Text style={styles.buttonText}>Login</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.switchButton} onPress={switchToRegister}>
-                    <Text style={styles.switchButtonText}>
-                        Need to create an account?
-                    </Text>
-                </TouchableOpacity>
-                {message ? (
-                    <Text style={[styles.message, isSuccess ? styles.successMessage : styles.errorMessage]}>
-                        {message}
-                    </Text>
-                ) : null}
-                <Animated.Image
-                    source={require('../images/football.png')}
-                    style={[
-                        styles.footballBall,
-                        {
-                            transform: [
-                                { translateX: ballPosition.x },
-                                { translateY: ballPosition.y },
-                            ],
-                            opacity: ballOpacity,
-                        },
-                    ]}
-                />
-            </View>
+            <ScrollView contentContainerStyle={styles.scrollViewContent}>
+                <Animated.View style={[styles.flashOverlay, { opacity: flashOpacity }]} />
+                <View style={styles.container}>
+                    <Text style={styles.title}>Login</Text>
+                    <AnimatedInput
+                        value={email}
+                        onChangeText={setEmail}
+                        placeholder="Email"
+                        keyboardType="email-address"
+                        error={!!fieldErrors['email']}
+                    />
+                    {fieldErrors['email'] && <ErrorMessage errors={fieldErrors['email']} />}
+                    <AnimatedInput
+                        value={password}
+                        onChangeText={setPassword}
+                        placeholder="Password"
+                        secureTextEntry
+                        error={!!fieldErrors['password']}
+                    />
+                    {fieldErrors['password'] && <ErrorMessage errors={fieldErrors['password']} />}
+                    <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+                        <Text style={styles.buttonText}>Login</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.switchButton} onPress={switchToRegister}>
+                        <Text style={styles.switchButtonText}>
+                            Need to create an account?
+                        </Text>
+                    </TouchableOpacity>
+                    {message ? (
+                        <Text style={[styles.message, isSuccess ? styles.successMessage : styles.errorMessage]}>
+                            {message}
+                        </Text>
+                    ) : null}
+                    {errorResponse && (
+                        <Text style={styles.errorResponse}>{errorResponse}</Text>
+                    )}
+                    <Animated.Image
+                        source={require('../images/football.png')}
+                        style={[
+                            styles.footballBall,
+                            {
+                                transform: [
+                                    { translateX: ballPosition.x },
+                                    { translateY: ballPosition.y },
+                                ],
+                                opacity: ballOpacity,
+                            },
+                        ]}
+                    />
+                </View>
+            </ScrollView>
         </ImageBackground>
     );
 };
-
 
 const styles = StyleSheet.create({
     backgroundImage: {
         flex: 1,
         resizeMode: 'cover',
+    },
+    scrollViewContent: {
+        flexGrow: 1,
     },
     flashOverlay: {
         ...StyleSheet.absoluteFillObject,
@@ -281,6 +297,15 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 14,
         textDecorationLine: 'underline',
+    },
+    errorResponse: {
+        marginTop: 15,
+        padding: 10,
+        backgroundColor: 'rgba(255, 0, 0, 0.1)',
+        borderRadius: 5,
+        color: '#FF6347',
+        fontSize: 12,
+        fontFamily: 'monospace',
     },
 });
 

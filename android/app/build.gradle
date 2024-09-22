@@ -84,6 +84,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        resValue "string", "build_config_package", "com.footballsim"
     }
     signingConfigs {
         debug {
@@ -104,16 +105,21 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            resValue "string", "app_name", "Football Premier (Debug)"
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            resValue "string", "app_name", "Football Premier"
         }
     }
 }
+
+project.ext.envConfigFiles = [
+    debug: ".env",
+    release: ".env.production"
+]
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
