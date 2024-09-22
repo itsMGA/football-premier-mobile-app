@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import axiosInstance from '../axiosConfig';
+import { format, parseISO, isValid } from 'date-fns';
 
 interface FriendliesComponentProps {
     onNotificationUpdate: () => void;
@@ -18,10 +19,13 @@ interface FriendliesComponentProps {
 
 interface FriendlyChallenge {
     id: number;
-    challenger?: string;
-    challenged: string;
-    proposed_date: string;
-    status: string;
+    home_team: number;
+    away_team: number;
+    division: number | null;
+    date: string;
+    home_score: number | null;
+    away_score: number | null;
+    match_type: string;
 }
 
 interface Team {
@@ -39,6 +43,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const [searchResults, setSearchResults] = useState<Team[]>([]);
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const [proposedDate, setProposedDate] = useState('');
+    const [proposedTime, setProposedTime] = useState('');
     const [isModalVisible, setIsModalVisible] = useState(false);
 
     useEffect(() => {
@@ -49,9 +54,15 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const fetchFriendlyMatches = async () => {
         try {
             const response = await axiosInstance.get('matches/get/?type=FRIENDLY');
-            setFriendlyMatches(response.data);
+            if (response.data && Array.isArray(response.data)) {
+                setFriendlyMatches(response.data);
+            } else {
+                console.error('Unexpected response format:', response.data);
+                setFriendlyMatches([]);
+            }
         } catch (error) {
             console.error('Error fetching friendly matches:', error);
+            setFriendlyMatches([]);
         }
     };
 
@@ -75,17 +86,18 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     };
 
     const createFriendlyChallenge = async () => {
-        if (!selectedTeam || !proposedDate) return;
+        if (!selectedTeam || !proposedDate || !proposedTime) return;
 
         try {
             await axiosInstance.post('matches/friendly-challenges/create/', {
                 challenged_team_id: selectedTeam.id,
-                proposed_date: proposedDate,
+                proposed_date: `${proposedDate} ${proposedTime}`,
             });
             fetchFriendlyChallenges();
             onNotificationUpdate();
             setSelectedTeam(null);
             setProposedDate('');
+            setProposedTime('');
             setIsModalVisible(false);
         } catch (error) {
             console.error('Error creating friendly challenge:', error);
@@ -114,14 +126,18 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
             {friendlyMatches.length === 0 ? (
                 <Text style={styles.noDataText}>No matches scheduled</Text>
             ) : (
-                friendlyMatches.map((item) => (
-                    <View key={item.id} style={styles.tableRow}>
-                        <Text style={styles.tableCell}>{item.challenger}</Text>
-                        <Text style={styles.tableCell}>{item.challenged}</Text>
-                        <Text style={styles.tableCell}>{new Date(item.proposed_date).toLocaleDateString()}</Text>
-                        <Text style={styles.tableCell}>{item.status}</Text>
-                    </View>
-                ))
+                friendlyMatches.map((item) => {
+                    const date = parseISO(item.date);
+                    const formattedDate = isValid(date) ? format(date, 'yyyy-MM-dd HH:mm') : 'Invalid Date';
+                    return (
+                        <View key={item.id} style={styles.tableRow}>
+                            <Text style={styles.tableCell}>{item.home_team}</Text>
+                            <Text style={styles.tableCell}>{item.away_team}</Text>
+                            <Text style={styles.tableCell}>{formattedDate}</Text>
+                            <Text style={styles.tableCell}>{item.match_type}</Text>
+                        </View>
+                    );
+                })
             )}
         </View>
     );
@@ -130,7 +146,9 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         <View key={item.id} style={styles.challengeItem}>
             <View style={styles.challengeInfo}>
                 <Text style={styles.challengeText}>{item.challenger || 'Your Team'} vs {item.challenged}</Text>
-                <Text style={styles.challengeDate}>Date: {new Date(item.proposed_date).toLocaleDateString()}</Text>
+                <Text style={styles.challengeDate}>
+                    Date: {format(new Date(item.proposed_date), 'yyyy-MM-dd HH:mm')}
+                </Text>
                 <Text style={styles.challengeStatus}>Status: {item.status}</Text>
             </View>
             {item.challenger && (
@@ -191,7 +209,37 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
             <FlatList
                 data={[{ key: 'dummy' }]} // We need at least one item for the list to render
                 renderItem={() => null}
-                ListHeaderComponent={renderHeader}
+                ListHeaderComponent={() => (
+                    <>
+                        <Text style={styles.mainTitle}>Friendly Matches</Text>
+
+                        <TouchableOpacity style={styles.createChallengeButton} onPress={() => setIsModalVisible(true)}>
+                            <Icon name="add-circle" size={24} color="white" />
+                            <Text style={styles.createChallengeButtonText}>Create Challenge</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Scheduled Matches</Text>
+                            {renderFriendlyMatchesTable()}
+                        </View>
+
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Received Challenges</Text>
+                            {receivedChallenges.length === 0 ? (
+                                <Text style={styles.noDataText}>No pending challenges</Text>
+                            ) : (
+                                receivedChallenges.map(challenge => renderFriendlyChallenge(challenge))
+                            )}
+                        </View>
+
+                        {sentChallenges.length > 0 && (
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Sent Challenges</Text>
+                                {sentChallenges.map(challenge => renderFriendlyChallenge(challenge))}
+                            </View>
+                        )}
+                    </>
+                )}
                 contentContainerStyle={{ paddingBottom: 80 }} // Add padding to the bottom of the FlatList
             />
 
@@ -239,6 +287,12 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                                     value={proposedDate}
                                     onChangeText={setProposedDate}
                                 />
+                                <TextInput
+                                    style={styles.dateInput}
+                                    placeholder="Proposed Time (HH:MM)"
+                                    value={proposedTime}
+                                    onChangeText={setProposedTime}
+                                />
                                 <TouchableOpacity style={styles.createButton} onPress={createFriendlyChallenge}>
                                     <Icon name="send" size={24} color="white" />
                                     <Text style={styles.buttonText}>Send Challenge</Text>
@@ -253,6 +307,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
             </Modal>
         </SafeAreaView>
     );
+
 };
 
 const styles = StyleSheet.create({
