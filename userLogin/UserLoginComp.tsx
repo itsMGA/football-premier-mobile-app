@@ -8,6 +8,7 @@ import {
     Easing,
     ImageBackground,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
 import axios from 'axios';
 import axiosInstance, { storeEncryptedToken, getDecryptedToken } from '../axiosConfig';
@@ -21,37 +22,6 @@ interface UserLoginCompProps {
     onLoginSuccess: (hasTeam: boolean) => void;
     switchToRegister: () => void;
 }
-
-const LoadingIndicator = () => {
-    const rotation = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        Animated.loop(
-            Animated.timing(rotation, {
-                toValue: 1,
-                duration: 2000,
-                easing: Easing.linear,
-                useNativeDriver: true,
-            })
-        ).start();
-    }, []);
-
-    const spin = rotation.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['0deg', '360deg'],
-    });
-
-    return (
-        <Animated.View
-            style={[
-                styles.loadingIndicator,
-                {
-                    transform: [{ rotate: spin }],
-                },
-            ]}
-        />
-    );
-};
 
 const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToRegister }) => {
     const [email, setEmail] = useState('');
@@ -238,7 +208,7 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
                         disabled={isLoading}
                     >
                         {isLoading ? (
-                            <LoadingIndicator />
+                            <ActivityIndicator color="#ffffff" />
                         ) : (
                             <Text style={styles.buttonText}>Login</Text>
                         )}
@@ -311,6 +281,7 @@ const styles = StyleSheet.create({
         elevation: 3,
         alignItems: 'center',
         justifyContent: 'center',
+        height: 48,
     },
     buttonText: {
         color: 'white',
@@ -353,14 +324,6 @@ const styles = StyleSheet.create({
         color: '#FF6347',
         fontSize: 12,
         fontFamily: 'monospace',
-    },
-    loadingIndicator: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        borderWidth: 2,
-        borderColor: '#ffffff',
-        borderTopColor: 'transparent',
     },
 });
 
