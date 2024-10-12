@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     StyleSheet,
     Text,
@@ -22,6 +22,37 @@ interface UserLoginCompProps {
     switchToRegister: () => void;
 }
 
+const LoadingIndicator = () => {
+    const rotation = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.timing(rotation, {
+                toValue: 1,
+                duration: 2000,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            })
+        ).start();
+    }, []);
+
+    const spin = rotation.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
+
+    return (
+        <Animated.View
+            style={[
+                styles.loadingIndicator,
+                {
+                    transform: [{ rotate: spin }],
+                },
+            ]}
+        />
+    );
+};
+
 const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToRegister }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -29,6 +60,7 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
     const [isSuccess, setIsSuccess] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<FieldError>({});
     const [errorResponse, setErrorResponse] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     const ballPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
     const ballOpacity = useRef(new Animated.Value(0)).current;
@@ -119,7 +151,12 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
     };
 
     const handleSubmit = async () => {
-        await loginManager(email, password);
+        setIsLoading(true);
+        try {
+            await loginManager(email, password);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const animateFlash = () => {
@@ -195,8 +232,16 @@ const UserLoginComp: React.FC<UserLoginCompProps> = ({ onLoginSuccess, switchToR
                         error={!!fieldErrors['password']}
                     />
                     {fieldErrors['password'] && <ErrorMessage errors={fieldErrors['password']} />}
-                    <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                        <Text style={styles.buttonText}>Login</Text>
+                    <TouchableOpacity
+                        style={styles.button}
+                        onPress={handleSubmit}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <LoadingIndicator />
+                        ) : (
+                            <Text style={styles.buttonText}>Login</Text>
+                        )}
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.switchButton} onPress={switchToRegister}>
                         <Text style={styles.switchButtonText}>
@@ -264,6 +309,8 @@ const styles = StyleSheet.create({
         borderRadius: 25,
         marginTop: 20,
         elevation: 3,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     buttonText: {
         color: 'white',
@@ -306,6 +353,14 @@ const styles = StyleSheet.create({
         color: '#FF6347',
         fontSize: 12,
         fontFamily: 'monospace',
+    },
+    loadingIndicator: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#ffffff',
+        borderTopColor: 'transparent',
     },
 });
 
