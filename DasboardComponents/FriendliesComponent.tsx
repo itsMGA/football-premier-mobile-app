@@ -43,6 +43,12 @@ interface MatchData {
     status: 'NOT_STARTED' | 'SIMULATED';
 }
 
+interface MatchEvent {
+    type: string;
+    minute: number;
+    description: string;
+}
+
 const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificationUpdate, userTeamId }) => {
     const [friendlyMatches, setFriendlyMatches] = useState<MatchData[]>([]);
     const [receivedChallenges, setReceivedChallenges] = useState<FriendlyChallenge[]>([]);
@@ -53,6 +59,8 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [userTeam, setUserTeam] = useState(null);
+    const [isResultModalVisible, setIsResultModalVisible] = useState(false);
+    const [matchEvents, setMatchEvents] = useState<MatchEvent[]>([]);
 
     const pendingSentChallenges = sentChallenges.filter(challenge => challenge.status === "PENDING");
 
@@ -146,6 +154,29 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         }
     };
 
+    const getMatchResult = async (matchId: number) => {
+        try {
+            const response = await axiosInstance.get(`matches/match-result/${matchId}/`);
+            const events = response.data.events.map((event: any) => ({
+                type: event.type,
+                minute: event.minute,
+                description: event.description,
+            }));
+            setMatchEvents(events);
+            setIsResultModalVisible(true);
+        } catch (error) {
+            console.error('Error fetching match result:', error);
+            Alert.alert('Error', 'Unable to fetch match result. Please try again later.');
+        }
+    };
+
+    const renderMatchEvent = ({ item }: { item: MatchEvent }) => (
+        <View style={styles.eventItem}>
+            <Text style={styles.eventMinute}>{`${item.minute}'`}</Text>
+            <Text style={styles.eventDescription}>{item.description}</Text>
+        </View>
+    );
+
     const renderFriendlyMatchesTable = () => (
         <View style={styles.tableContainer}>
             <View style={styles.tableHeader}>
@@ -193,20 +224,6 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
             )}
         </View>
     );
-
-    const getMatchResult = async (matchId: number) => {
-        try {
-            const response = await axiosInstance.get(`matches/match-result/${matchId}/`);
-            Alert.alert(
-                'Match Result',
-                `Home Score: ${response.data.home_score}\nAway Score: ${response.data.away_score}`,
-                [{ text: 'OK' }]
-            );
-        } catch (error) {
-            console.error('Error fetching match result:', error);
-            Alert.alert('Error', 'Unable to fetch match result. Please try again later.');
-        }
-    };
 
     const renderFriendlyChallenge = (item: FriendlyChallenge, isReceived: boolean) => (
         <View key={item.id} style={styles.challengeItem}>
@@ -343,6 +360,31 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                                 setSearchQuery('');
                                 setSearchResults([]);
                             }}
+                        >
+                            <Icon name="close" size={24} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={isResultModalVisible}
+                onRequestClose={() => setIsResultModalVisible(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Match Events</Text>
+                        <FlatList
+                            data={matchEvents}
+                            renderItem={renderMatchEvent}
+                            keyExtractor={(item, index) => `${item.type}-${index}`}
+                            style={styles.eventList}
+                        />
+                        <TouchableOpacity
+                            style={styles.closeButton}
+                            onPress={() => setIsResultModalVisible(false)}
                         >
                             <Icon name="close" size={24} color="white" />
                         </TouchableOpacity>
@@ -553,13 +595,6 @@ const styles = StyleSheet.create({
         color: '#333',
         marginBottom: 10,
     },
-    dateInput: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        padding: 10,
-        marginBottom: 10,
-    },
     createButton: {
         backgroundColor: '#4CAF50',
         flexDirection: 'row',
@@ -583,13 +618,27 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    disabledButton: {
-        backgroundColor: '#B0BEC5',
-    },
     resultButtonText: {
         color: 'white',
         fontWeight: 'bold',
         fontSize: 12,
+    },
+    eventList: {
+        maxHeight: '90%',
+    },
+    eventItem: {
+        flexDirection: 'row',
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+    },
+    eventMinute: {
+        fontWeight: 'bold',
+        marginRight: 10,
+        minWidth: 30,
+    },
+    eventDescription: {
+        flex: 1,
     },
 });
 
