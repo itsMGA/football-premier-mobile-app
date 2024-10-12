@@ -4,7 +4,11 @@ import Config from 'react-native-config';
 import * as encryptUtils from './encryptUtils';
 import RNFS from 'react-native-fs';
 
-const baseURL = Config.BASE_URL || 'https://football.eliptum.tech/';
+const isLocal = Config.IS_LOCAL === 'true' || false; // Read from .env, default to false if not found
+const LOCAL_HOST_URL = Config.LOCAL_HOST_URL || 'http://10.0.2.2:8000/';
+const PRODUCTION_URL = Config.BASE_URL || 'https://football.eliptum.tech/';
+
+const baseURL = isLocal ? LOCAL_HOST_URL : PRODUCTION_URL;
 const debugMode = true;
 const noAuthEndpoints = [
     'accounts/create/',

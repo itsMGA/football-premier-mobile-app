@@ -62,26 +62,6 @@ function App(): React.JSX.Element {
   const handleAuthSuccess = async (hasTeam: boolean) => {
     setIsLoggedIn(true);
     setHasTeam(hasTeam);
-    if (!hasTeam) {
-      // If the user doesn't have a team, we'll show the team selection screen
-      // This is handled in renderContent()
-    }
-  };
-
-  const handleTeamSelection = useCallback(async (teamId: string) => {
-    try {
-      console.log('Assigning team in App.tsx:', teamId);
-      setHasTeam(true);
-      // The API call is done in SelectClubPanel, so we just update the state here
-    } catch (error) {
-      console.error('Error handling team selection:', error);
-      setHasTeam(false);
-    }
-  }, []);
-
-  const handleCloseTeamSelection = () => {
-    setIsLoggedIn(false);
-    setHasTeam(false);
   };
 
   const renderContent = () => {
@@ -94,9 +74,6 @@ function App(): React.JSX.Element {
     }
     if (!isLoggedIn) {
       return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
-    }
-    if (!hasTeam) {
-      return <SelectClubPanel onSelectTeam={handleTeamSelection} onClose={handleCloseTeamSelection} />;
     }
     return <Dashboard onLogout={logout} />;
   };
@@ -111,6 +88,7 @@ function App(): React.JSX.Element {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+
 }
 
 const styles = StyleSheet.create({

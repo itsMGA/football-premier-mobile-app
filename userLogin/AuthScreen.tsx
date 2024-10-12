@@ -39,14 +39,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
     };
 
     const handleTeamSelection = async (teamId: number) => {
-        try {
-            await axiosInstance.post('accounts/user-progress/assign-team/', { team_id: teamId });
-            setNeedsTeamSelection(false);
-            onAuthSuccess(true);
-        } catch (error) {
-            console.error('Error assigning team:', error);
-            // Handle error (e.g., show an error message to the user)
-        }
+        setNeedsTeamSelection(false);
+        onAuthSuccess(true);
     };
 
     if (needsTeamSelection) {

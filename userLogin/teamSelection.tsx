@@ -191,6 +191,7 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
             setStep('division');
         }
     };
+
     const handleSelectTeam = useCallback(async () => {
         const now = Date.now();
         if (isAssigning || now - lastAssignTime.current < 1000) {
@@ -202,22 +203,20 @@ const SelectClubPanel: React.FC<SelectClubPanelProps> = ({ onClose, onSelectTeam
             try {
                 setIsAssigning(true);
                 lastAssignTime.current = now;
-                console.log('Assigning team:', teams[selectedTeamIndex].id);
                 setLoading(true);
                 await axiosInstance.post('accounts/user-progress/assign-team/', { team_id: teams[selectedTeamIndex].id });
                 setLoading(false);
                 console.log('Team assigned successfully');
-                onSelectTeam(teams[selectedTeamIndex].id.toString()); // Call this after successful assignment
+                onSelectTeam(teams[selectedTeamIndex].id);
             } catch (error) {
                 console.error('Error assigning team:', error);
                 setLoading(false);
+                // Handle error (e.g., show an error message to the user)
             } finally {
                 setIsAssigning(false);
             }
         }
     }, [teams, selectedTeamIndex, onSelectTeam]);
-
-
 
 
     const renderSelector = () => {

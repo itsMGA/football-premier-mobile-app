@@ -8,11 +8,11 @@ import {
     FlatList,
     Modal,
     SafeAreaView,
+    Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import axiosInstance from '../axiosConfig';
-import { format, parseISO, isValid } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
+import { format, parseISO } from 'date-fns';
 
 interface FriendliesComponentProps {
     onNotificationUpdate: () => void;
@@ -35,14 +35,12 @@ interface Team {
 
 interface MatchData {
     id: number;
-    home_team: string | number;
-    away_team: string | number;
-    home_team_id: number;
-    away_team_id: number;
-    home_start_time?: string;
-    away_start_time?: string;
-    date?: string;
-    match_type: string;
+    home_team: string;
+    away_team: string;
+    date: string;
+    home_score: number | null;
+    away_score: number | null;
+    status: 'NOT_STARTED' | 'SIMULATED';
 }
 
 const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificationUpdate, userTeamId }) => {
@@ -54,28 +52,9 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [teams, setTeams] = useState<{ [key: number]: string }>({});
     const [userTeam, setUserTeam] = useState(null);
 
     const pendingSentChallenges = sentChallenges.filter(challenge => challenge.status === "PENDING");
-
-    const openModal = () => {
-        setIsModalVisible(true);
-        setErrorMessage(null);
-        setSelectedTeam(null);
-        setSearchQuery('');
-        setSearchResults([]);
-    };
-
-    const fetchTeamData = async (teamId: number) => {
-        if (teams[teamId]) return;
-        try {
-            const response = await axiosInstance.get(`league/teams/${teamId}/`);
-            setTeams(prevTeams => ({ ...prevTeams, [teamId]: response.data.name }));
-        } catch (error) {
-            console.error('Error fetching team data:', error);
-        }
-    };
 
     useEffect(() => {
         fetchFriendlyMatches();
@@ -83,21 +62,11 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         fetchUserTeam();
     }, []);
 
-    useEffect(() => {
-        friendlyMatches.forEach(match => {
-            fetchTeamData(match.home_team);
-            fetchTeamData(match.away_team);
-        });
-    }, [friendlyMatches]);
-
     const fetchFriendlyMatches = async () => {
         try {
-            const response = await axiosInstance.get('matches/get/?type=FRIENDLY');
-            if (response.data && Array.isArray(response.data)) {
-                const validMatches = response.data.filter(match =>
-                    match && typeof match === 'object' && 'id' in match
-                );
-                setFriendlyMatches(validMatches);
+            const response = await axiosInstance.get('matches/all/');
+            if (response.data && Array.isArray(response.data.matches)) {
+                setFriendlyMatches(response.data.matches);
             } else {
                 console.error('Unexpected response format:', response.data);
                 setFriendlyMatches([]);
@@ -116,6 +85,23 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         } catch (error) {
             console.error('Error fetching friendly challenges:', error);
         }
+    };
+
+    const fetchUserTeam = async () => {
+        try {
+            const response = await axiosInstance.get('accounts/user-team/');
+            setUserTeam(response.data);
+        } catch (error) {
+            console.error('Error fetching user team:', error);
+        }
+    };
+
+    const openModal = () => {
+        setIsModalVisible(true);
+        setErrorMessage(null);
+        setSelectedTeam(null);
+        setSearchQuery('');
+        setSearchResults([]);
     };
 
     const searchTeams = async () => {
@@ -160,65 +146,67 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
         }
     };
 
-    const fetchUserTeam = async () => {
-        try {
-            const response = await axiosInstance.get('accounts/user-team/');
-            setUserTeam(response.data);
-        } catch (error) {
-            console.error('Error fetching user team:', error);
-        }
-    };
-
     const renderFriendlyMatchesTable = () => (
         <View style={styles.tableContainer}>
             <View style={styles.tableHeader}>
                 <Text style={styles.tableHeaderCell}>Home Team</Text>
                 <Text style={styles.tableHeaderCell}>Away Team</Text>
-                <Text style={styles.tableHeaderCell}>Kickoff</Text>
+                <Text style={styles.tableHeaderCell}>Date</Text>
+                <Text style={styles.tableHeaderCell}>Score</Text>
                 <Text style={styles.tableHeaderCell}>Status</Text>
+                <Text style={styles.tableHeaderCell}>Result</Text>
             </View>
             {friendlyMatches.length === 0 ? (
-                <Text style={styles.noDataText}>No matches scheduled</Text>
+                <Text style={styles.noDataText}>No matches available</Text>
             ) : (
-                friendlyMatches.map((item) => {
-                    const isUserHomeTeam = userTeam && item.home_team === userTeam.id;
-                    const isUserAwayTeam = userTeam && item.away_team === userTeam.id;
-                    let kickoffTime, kickoffTimeZone;
+                <FlatList
+                    data={friendlyMatches}
+                    renderItem={({ item }) => {
+                        const kickoffTime = parseISO(item.date);
+                        const formattedKickoff = format(kickoffTime, 'yyyy-MM-dd HH:mm');
+                        const score = item.status === 'SIMULATED' ? `${item.home_score} - ${item.away_score}` : '-';
 
-                    if (isUserHomeTeam) {
-                        kickoffTime = item.home_team_start_time;
-                        kickoffTimeZone = item.home_team_timezone;
-                    } else if (isUserAwayTeam) {
-                        kickoffTime = item.away_team_start_time;
-                        kickoffTimeZone = item.away_team_timezone;
-                    } else {
-                        kickoffTime = item.date;
-                        kickoffTimeZone = 'UTC';
-                    }
-
-                    let formattedKickoff = 'TBD';
-                    if (kickoffTime) {
-                        const kickoff = parseISO(kickoffTime);
-                        if (isValid(kickoff)) {
-                            const zonedTime = toZonedTime(kickoff, kickoffTimeZone);
-                            formattedKickoff = `${format(zonedTime, 'yyyy-MM-dd HH:mm')} (${kickoffTimeZone})`;
-                        } else {
-                            formattedKickoff = 'Invalid Date';
-                        }
-                    }
-
-                    return (
-                        <View key={item.id} style={styles.tableRow}>
-                            <Text style={styles.tableCell}>{teams[item.home_team] || 'Loading...'}</Text>
-                            <Text style={styles.tableCell}>{teams[item.away_team] || 'Loading...'}</Text>
-                            <Text style={styles.tableCell}>{formattedKickoff}</Text>
-                            <Text style={styles.tableCell}>{item.match_type}</Text>
-                        </View>
-                    );
-                })
+                        return (
+                            <View style={styles.tableRow}>
+                                <Text style={styles.tableCell}>{item.home_team}</Text>
+                                <Text style={styles.tableCell}>{item.away_team}</Text>
+                                <Text style={styles.tableCell}>{formattedKickoff}</Text>
+                                <Text style={styles.tableCell}>{score}</Text>
+                                <Text style={styles.tableCell}>{item.status}</Text>
+                                <View style={styles.tableCell}>
+                                    {item.status === 'SIMULATED' ? (
+                                        <TouchableOpacity
+                                            style={styles.resultButton}
+                                            onPress={() => getMatchResult(item.id)}
+                                        >
+                                            <Text style={styles.resultButtonText}>View Result</Text>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <Text>-</Text>
+                                    )}
+                                </View>
+                            </View>
+                        );
+                    }}
+                    keyExtractor={(item) => item.id.toString()}
+                />
             )}
         </View>
     );
+
+    const getMatchResult = async (matchId: number) => {
+        try {
+            const response = await axiosInstance.get(`matches/match-result/${matchId}/`);
+            Alert.alert(
+                'Match Result',
+                `Home Score: ${response.data.home_score}\nAway Score: ${response.data.away_score}`,
+                [{ text: 'OK' }]
+            );
+        } catch (error) {
+            console.error('Error fetching match result:', error);
+            Alert.alert('Error', 'Unable to fetch match result. Please try again later.');
+        }
+    };
 
     const renderFriendlyChallenge = (item: FriendlyChallenge, isReceived: boolean) => (
         <View key={item.id} style={styles.challengeItem}>
@@ -262,7 +250,7 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
                         </TouchableOpacity>
 
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Scheduled Matches</Text>
+                            <Text style={styles.sectionTitle}>All Matches</Text>
                             {renderFriendlyMatchesTable()}
                         </View>
 
@@ -365,7 +353,6 @@ const FriendliesComponent: React.FC<FriendliesComponentProps> = ({ onNotificatio
     );
 };
 
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -402,28 +389,32 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: '#E0E0E0',
+        marginHorizontal: 10,
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: '#f0f0f0',
-        padding: 10,
+        backgroundColor: '#2196F3',
+        padding: 12,
     },
     tableHeaderCell: {
         flex: 1,
         fontWeight: 'bold',
         textAlign: 'center',
-        color: '#333',
+        color: 'white',
+        fontSize: 14,
     },
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: '#e0e0e0',
-        padding: 10,
+        padding: 12,
+        backgroundColor: 'white',
     },
     tableCell: {
         flex: 1,
         textAlign: 'center',
-        color: '#444',
+        color: '#333',
+        fontSize: 12,
     },
     challengeItem: {
         padding: 15,
@@ -584,6 +575,21 @@ const styles = StyleSheet.create({
         backgroundColor: '#F44336',
         borderRadius: 20,
         padding: 5,
+    },
+    resultButton: {
+        backgroundColor: '#4CAF50',
+        padding: 6,
+        borderRadius: 5,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    disabledButton: {
+        backgroundColor: '#B0BEC5',
+    },
+    resultButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 12,
     },
 });
 
