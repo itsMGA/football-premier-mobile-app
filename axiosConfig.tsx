@@ -2,6 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import * as encryptUtils from './encryptUtils';
+import RNFS from 'react-native-fs';
 
 const baseURL = Config.BASE_URL || 'https://football.eliptum.tech/';
 const debugMode = true;
@@ -32,7 +33,19 @@ const toCurlCommand = (config: any) => {
 
 const logSeparator = (message: string) => {
     const line = '-'.repeat(30);
-    console.log(`\n${line}[${message}]${line}`);
+    return `\n${line}[${message}]${line}`;
+};
+
+const logToFile = async (message: string) => {
+    const logFilePath = `${RNFS.DocumentDirectoryPath}/api_logs.txt`;
+    const timestamp = new Date().toISOString();
+    const logMessage = `${timestamp}: ${message}\n`;
+
+    try {
+        await RNFS.appendFile(logFilePath, logMessage, 'utf8');
+    } catch (error) {
+        console.error('Error writing to log file:', error);
+    }
 };
 
 axiosInstance.interceptors.request.use(
@@ -50,44 +63,59 @@ axiosInstance.interceptors.request.use(
             }
         } catch (error) {
             console.error('Error retrieving token:', error);
+            await logToFile(`Error retrieving token: ${error}`);
         }
 
         if (debugMode) {
-            logSeparator(`Request to ${config.baseURL}${config.url}`);
-            console.log('Headers:', JSON.stringify(config.headers, null, 2));
-            console.log('Data:', JSON.stringify(config.data, null, 2));
+            const requestLog = `
+${logSeparator(`Request to ${config.baseURL}${config.url}`)}
+Headers: ${JSON.stringify(config.headers, null, 2)}
+Data: ${JSON.stringify(config.data, null, 2)}
+${logSeparator('End of Request')}`;
+
+            console.log(requestLog);
+            await logToFile(requestLog);
         }
         return config;
     },
-    (error) => {
+    async (error) => {
         if (debugMode) {
-            logSeparator('Request Error');
-            console.error(error);
+            const errorLog = `
+${logSeparator('Request Error')}
+${error}
+${logSeparator('End of Request Error')}`;
+
+            console.error(errorLog);
+            await logToFile(errorLog);
         }
         return Promise.reject(error);
     }
 );
 
 axiosInstance.interceptors.response.use(
-    (response) => {
+    async (response) => {
         if (debugMode) {
-            logSeparator(`Response from ${response.config.url}`);
-            console.log(`Status: ${response.status}`);
-            console.log('Data:', JSON.stringify(response.data, null, 2));
-            logSeparator('End of Response');
+            const responseLog = `
+${logSeparator(`Response from ${response.config.url}`)}
+Status: ${response.status}
+Data: ${JSON.stringify(response.data, null, 2)}
+${logSeparator('End of Response')}`;
+
+            console.log(responseLog);
+            await logToFile(responseLog);
         }
         return response;
     },
-    (error) => {
+    async (error) => {
         if (debugMode) {
-            logSeparator(`Error Response from ${error.config?.url || 'unknown endpoint'}`);
-            if (error.response) {
-                console.error(`Status: ${error.response.status}`);
-                console.error('Data:', JSON.stringify(error.response.data, null, 2));
-            } else {
-                console.error('Error:', error.message);
-            }
-            logSeparator('End of Error Response');
+            const errorLog = `
+${logSeparator(`Error Response from ${error.config?.url || 'unknown endpoint'}`)}
+${error.response ? `Status: ${error.response.status}
+Data: ${JSON.stringify(error.response.data, null, 2)}` : `Error: ${error.message}`}
+${logSeparator('End of Error Response')}`;
+
+            console.error(errorLog);
+            await logToFile(errorLog);
         }
         return Promise.reject(error);
     }
